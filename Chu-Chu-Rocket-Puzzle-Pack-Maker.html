@@ -1,0 +1,1401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chu Chu Rocket! Puzzle Pack Maker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/*
+  Page layout: one working column.
+  1. Add files        (.drop)
+  2. Pack summary     (.bar)
+  3. 25 slot cards    (.slots)
+  4. Save the pack    (.out)
+*/
+
+/* ---------- Colours and fonts ---------- */
+
+:root {
+  --bg: #e9eff7;
+  --surface: #f8fbfe;
+  --ink: #131c33;
+  --muted: #55627f;
+  --line: #c3cfe1;
+  --accent: #cf4a08;
+  --accent-ink: #ffffff;
+  --ok: #1b7549;
+  --warn: #8a5200;
+  --warn-bg: #fcebcb;
+  --slot-empty: #dae3ef;
+  --focus: #1f5fd0;
+
+  --display: "Chakra Petch", "Trebuchet MS", "Segoe UI", sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+
+/* Dark theme, when the device asks for it and the viewer has not forced light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1423;
+    --surface: #162035;
+    --ink: #e7edf8;
+    --muted: #9aa8c4;
+    --line: #2b3855;
+    --accent: #ff8a3d;
+    --accent-ink: #1c0f04;
+    --ok: #5fd39a;
+    --warn: #ffc467;
+    --warn-bg: #3a2a0c;
+    --slot-empty: #121b2e;
+    --focus: #7fb0ff;
+    color-scheme: dark;
+  }
+}
+
+/* Dark theme, when the viewer has forced dark. Same values as above. */
+:root[data-theme="dark"] {
+  --bg: #0d1423;
+  --surface: #162035;
+  --ink: #e7edf8;
+  --muted: #9aa8c4;
+  --line: #2b3855;
+  --accent: #ff8a3d;
+  --accent-ink: #1c0f04;
+  --ok: #5fd39a;
+  --warn: #ffc467;
+  --warn-bg: #3a2a0c;
+  --slot-empty: #121b2e;
+  --focus: #7fb0ff;
+  color-scheme: dark;
+}
+
+/* ---------- Base ---------- */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.5 var(--body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-inline: 20px;
+  padding-block: 32px 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- Headings ---------- */
+
+header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+h1 {
+  margin: 0;
+  font: 700 clamp(28px, 5vw, 40px)/1.05 var(--display);
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+
+h1 span {
+  color: var(--accent);
+}
+
+h2 {
+  margin: 0;
+  font: 600 17px/1.2 var(--display);
+  letter-spacing: .01em;
+}
+
+.lead {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--muted);
+}
+
+/* ---------- Buttons ---------- */
+
+button {
+  padding: 9px 14px;
+  font: 500 14px/1 var(--body);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+button.primary {
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent-ink);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+button.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+  border-color: var(--accent);
+}
+
+/* ---------- 1. Add files ---------- */
+
+.drop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 20px;
+  padding: 22px 20px;
+  background: var(--surface);
+  border: 2px dashed var(--line);
+  border-radius: 10px;
+}
+
+/* While files are being dragged over the page. */
+.drop.over {
+  border-color: var(--accent);
+}
+
+.drop p {
+  flex: 1 1 260px;
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+}
+
+.drop strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Messages about files that were skipped or left out. */
+.notices {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notice {
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- 2. Pack summary ---------- */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+}
+
+.bar .spacer {
+  flex: 1 1 0;
+}
+
+.count {
+  font: 600 17px/1.2 var(--display);
+  font-variant-numeric: tabular-nums;
+}
+
+.size {
+  font: 400 13px/1.3 var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* One small bar per slot; filled slots are lit. */
+.pips {
+  display: grid;
+  grid-template-columns: repeat(25, 9px);
+  gap: 3px;
+}
+
+.pips i {
+  height: 14px;
+  background: var(--slot-empty);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+
+.pips i.on {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ---------- 3. Slot cards ---------- */
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.card.empty {
+  justify-content: center;
+  align-items: center;
+  min-height: 84px;
+  color: var(--muted);
+  background: transparent;
+  border-style: dashed;
+}
+
+.card.empty .slotno {
+  font-size: 22px;
+  opacity: .55;
+}
+
+/* The card a dragged puzzle would land on. */
+.card.target {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.slotno {
+  font: 700 18px/1 var(--display);
+  font-variant-numeric: tabular-nums;
+}
+
+.dname {
+  font: 500 12px/1 var(--mono);
+  color: var(--muted);
+}
+
+/* Move earlier, move later, remove. */
+.btns {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.btns button {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* Picture of the puzzle board; also the drag handle. */
+.thumb {
+  overflow: hidden;
+  line-height: 0;
+  border-radius: 4px;
+  cursor: grab;
+}
+
+.thumb canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.card input.title {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 8px;
+  font: 500 14px/1.2 var(--body);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+}
+
+.meta {
+  font: 400 12px/1.35 var(--mono);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.chip {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 6px;
+  font: 500 11px/1.4 var(--mono);
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-radius: 4px;
+}
+
+/* ---------- 4. Save the pack ---------- */
+
+.out {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.saverow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 240px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field label {
+  font: 500 12px/1.2 var(--mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.field input {
+  width: 100%;
+  padding: 10px;
+  font: 500 15px/1.2 var(--mono);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.status {
+  min-height: 1.5em;
+  margin: 0;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.status.good {
+  color: var(--ok);
+}
+
+.status.bad {
+  color: var(--warn);
+}
+
+/* ---------- Small screens and motion ---------- */
+
+@media (max-width: 460px) {
+  .pips {
+    grid-template-columns: repeat(25, minmax(0, 1fr));
+    gap: 2px;
+    width: 100%;
+  }
+
+  .slots {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .card,
+  button {
+    transition: border-color .12s, box-shadow .12s;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <h1>Chu Chu Rocket! <span>Puzzle Pack</span> Maker</h1>
+    <p class="lead">Combine up to 25 puzzle saves into one puzzle pack.</p>
+  </header>
+
+  <!-- 1. Add files -->
+  <section class="drop" id="drop" aria-label="Add puzzle saves">
+    <button type="button" id="pick">Choose VMS files</button>
+    <input class="visually-hidden" type="file" id="file-input" multiple accept=".vms,.VMS" tabindex="-1" aria-hidden="true">
+    <p>
+      <strong>Or drop them anywhere on this page.</strong>
+      Single puzzle saves (1,536 bytes each) or an existing pack.
+      VMI files are not needed and are skipped.
+    </p>
+  </section>
+
+  <div class="notices" id="notices" aria-live="polite"></div>
+
+  <!-- 2. Pack summary -->
+  <section class="bar" aria-label="Pack contents">
+    <div class="count" id="count">0 of 25 slots filled</div>
+    <div class="pips" id="pips" aria-hidden="true"></div>
+    <div class="size" id="size">0 bytes · 0 VMU blocks</div>
+    <div class="spacer"></div>
+    <button type="button" id="sort" disabled>Sort by save number</button>
+    <button type="button" id="clear" disabled>Clear all</button>
+  </section>
+
+  <!-- 3. Slot cards (filled in by the script) -->
+  <ol class="slots" id="slots"></ol>
+
+  <!-- 4. Save the pack -->
+  <section class="out" aria-labelledby="out-h">
+    <h2 id="out-h">Save the pack</h2>
+    <div class="saverow">
+      <div class="field">
+        <label for="out-name">Pack file name</label>
+        <input type="text" id="out-name" value="PuzzleP.VMS" maxlength="60" spellcheck="false" autocomplete="off">
+      </div>
+      <button type="button" class="primary" id="save" disabled>Save and Export VMU File</button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </section>
+
+</div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   Chu Chu Rocket! Puzzle Pack Maker
+
+   A puzzle pack is nothing more than puzzle saves stored back to back.
+   Each save ("slot") is 1,536 bytes: a VMU header, an icon, the puzzle.
+
+   Sections of this script:
+     1. Save file layout
+     2. Reading a save
+     3. Writing a slot and the pack
+     4. Zip file (one file, no compression)
+     5. Board picture
+     6. Adding files
+     7. Drawing the page
+     8. Saving
+     9. Buttons and drag-and-drop
+   ===================================================================== */
+
+
+/* ---------- 1. Save file layout ---------- */
+
+const SLOT_SIZE = 1536;        // bytes in one puzzle save (3 VMU blocks of 512)
+const MAX_SLOTS = 25;          // a pack holds up to 25 puzzle saves
+
+// Where things sit inside one save.
+const SAVE_NAME_AT = 0x00;     // internal name, e.g. "CHU_CHU__D07"
+const SAVE_NAME_SIZE = 16;
+const DESCRIPTION_AT = 0x10;   // text shown in the Dreamcast file menu
+const DESCRIPTION_SIZE = 32;
+const SLOT_TAG_AT = 0x30;      // 16 bytes that identify the slot
+const CHECKSUM_AT = 0x46;      // 2 bytes, low byte first
+const DATA_SIZE_AT = 0x48;     // 4 bytes, low byte first
+const PUZZLE_AT = 0x280;       // puzzle data starts after the header and icon
+const TITLE_AT = 0x46b;        // puzzle title
+const TITLE_SIZE = 20;
+
+const PUZZLE_SIZE = 892;                            // every puzzle save declares this data size
+const CHECKSUMMED_SIZE = PUZZLE_AT + PUZZLE_SIZE;   // bytes covered by the checksum
+
+const SAVE_NAME_PREFIX = 'CHU_CHU__';
+const PACK_DESCRIPTION = 'CHUCHU!/DOWNLOAD';
+const DEFAULT_PACK_NAME = 'PuzzleP.VMS';
+
+// The board is stored as a grid 25 wide and 19 tall.
+// Odd columns and rows are the 12 x 9 squares; the lines between them are walls.
+const BOARD_GRID_WIDTH = 25;
+const BOARD_GRID_HEIGHT = 19;
+const BOARD_COLUMNS = 12;
+const BOARD_ROWS = 9;
+
+
+/* ---------- 2. Reading a save ---------- */
+
+// The puzzles currently in the pack, in slot order.
+let puzzles = [];
+let nextPuzzleId = 1;
+
+function byId(id) {
+  return document.getElementById(id);
+}
+
+// Two-digit number: 7 becomes "07".
+function twoDigits(n) {
+  return String(n).padStart(2, '0');
+}
+
+// VMU save checksum: CRC-16 (polynomial 0x1021, starting at 0),
+// with the two checksum bytes themselves counted as zero.
+function vmuChecksum(bytes, length) {
+  let crc = 0;
+  for (let i = 0; i < length; i++) {
+    const isChecksumByte = i === CHECKSUM_AT || i === CHECKSUM_AT + 1;
+    const value = isChecksumByte ? 0 : bytes[i];
+    crc ^= value << 8;
+    for (let bit = 0; bit < 8; bit++) {
+      if (crc & 0x8000) {
+        crc = ((crc << 1) ^ 0x1021) & 0xffff;
+      } else {
+        crc = (crc << 1) & 0xffff;
+      }
+    }
+  }
+  return crc;
+}
+
+function readText(bytes, from, to) {
+  let text = '';
+  for (let i = from; i < to; i++) {
+    text += String.fromCharCode(bytes[i]);
+  }
+  return text;
+}
+
+// Write text into a fixed-size field, padded with spaces.
+function writeText(bytes, at, size, text) {
+  for (let i = 0; i < size; i++) {
+    bytes[at + i] = i < text.length ? text.charCodeAt(i) & 0x7f : 0x20;
+  }
+}
+
+function readUint16(bytes, at) {
+  return bytes[at] | (bytes[at + 1] << 8);
+}
+
+function readUint32(bytes, at) {
+  return bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16) | (bytes[at + 3] << 24);
+}
+
+// The title ends at the first zero byte. Japanese titles are Shift-JIS.
+function readTitle(bytes) {
+  let end = TITLE_AT;
+  while (end < TITLE_AT + TITLE_SIZE && bytes[end] !== 0) {
+    end++;
+  }
+  const raw = bytes.subarray(TITLE_AT, end);
+
+  let title;
+  try {
+    title = new TextDecoder('shift_jis').decode(raw);
+  } catch (error) {
+    title = readText(raw, 0, raw.length);
+  }
+  return title.replace(/\s+$/, '');
+}
+
+// A title typed on this page can only use plain keyboard characters.
+function cleanTitle(text) {
+  return text.replace(/[^\x20-\x7E]/g, '').slice(0, TITLE_SIZE);
+}
+
+// Turn 1,536 bytes into a puzzle entry, or return null if they are not a puzzle save.
+function readPuzzle(bytes, sourceName) {
+  const saveName = readText(bytes, SAVE_NAME_AT, SAVE_NAME_AT + SAVE_NAME_SIZE).replace(/\s+$/, '');
+  const dataSize = readUint32(bytes, DATA_SIZE_AT);
+
+  if (!saveName.startsWith('CHU_CHU_') || dataSize !== PUZZLE_SIZE) {
+    return null;
+  }
+
+  const numberMatch = /D(\d\d)$/.exec(saveName);
+  const title = readTitle(bytes);
+  const storedChecksum = readUint16(bytes, CHECKSUM_AT);
+
+  return {
+    id: nextPuzzleId++,                                    // unique on this page only
+    bytes: bytes,
+    saveName: saveName,                                    // e.g. "CHU_CHU__D07"
+    saveNumber: numberMatch ? Number(numberMatch[1]) : null,
+    title: title,
+    originalTitle: title,
+    titleEdited: false,
+    checksumOk: vmuChecksum(bytes, PUZZLE_AT + dataSize) === storedChecksum,
+    sourceName: sourceName                                 // the file it came from
+  };
+}
+
+// Order by the save's own number; saves with the same number keep their order.
+function sortedBySaveNumber(list) {
+  return list.slice().sort((a, b) => a.saveNumber - b.saveNumber);
+}
+
+function allHaveSaveNumbers(list) {
+  return list.every(puzzle => puzzle.saveNumber !== null);
+}
+
+
+/* ---------- 3. Writing a slot and the pack ---------- */
+
+// The 16 bytes found at 0x30 in every slot of Sega's original pack.
+// The 13th and 14th bytes count the slot: 0x54 + tens digit, 0x54 + units digit.
+function slotTag(slotNumber) {
+  const tens = Math.floor(slotNumber / 10);
+  const units = slotNumber % 10;
+  return [
+    0x22, 0x47, 0x05, 0x22, 0x47, 0x05, 0x4e, 0x12,
+    0x26, 0x29, 0x54, 0x56, 0x54 + tens, 0x54 + units, 0x00, 0x00
+  ];
+}
+
+// Make the bytes for one slot of the pack.
+// Every slot gets its slot number, the download description, the slot tag and a fresh checksum.
+function buildSlot(puzzle, slotNumber) {
+  const bytes = puzzle.bytes.slice();
+
+  writeText(bytes, SAVE_NAME_AT, SAVE_NAME_SIZE, SAVE_NAME_PREFIX + 'D' + twoDigits(slotNumber));
+  writeText(bytes, DESCRIPTION_AT, DESCRIPTION_SIZE, PACK_DESCRIPTION);
+  bytes.set(slotTag(slotNumber), SLOT_TAG_AT);
+
+  if (puzzle.titleEdited) {
+    writeText(bytes, TITLE_AT, TITLE_SIZE, puzzle.title);
+    bytes[TITLE_AT + TITLE_SIZE] = 0;
+  }
+
+  const checksum = vmuChecksum(bytes, CHECKSUMMED_SIZE);
+  bytes[CHECKSUM_AT] = checksum & 0xff;
+  bytes[CHECKSUM_AT + 1] = checksum >> 8;
+
+  return bytes;
+}
+
+// Join the slots, in order, into one pack file.
+function buildPack(list) {
+  const pack = new Uint8Array(list.length * SLOT_SIZE);
+  list.forEach((puzzle, index) => {
+    pack.set(buildSlot(puzzle, index + 1), index * SLOT_SIZE);
+  });
+  return pack;
+}
+
+
+/* ---------- 4. Zip file (one file, no compression) ----------
+   Only used where the page is shown inside Claude, which can hand over a .zip but not a .VMS. */
+
+function crc32(bytes) {
+  let crc = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) {
+    let value = (crc ^ bytes[i]) & 0xff;
+    for (let bit = 0; bit < 8; bit++) {
+      value = (value & 1) ? (value >>> 1) ^ 0xedb88320 : value >>> 1;
+    }
+    crc = (crc >>> 8) ^ value;
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function makeZip(fileName, data) {
+  const name = new TextEncoder().encode(fileName);
+  const now = new Date();
+  const zipTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const zipDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const checksum = crc32(data);
+
+  const LOCAL_HEADER_SIZE = 30;
+  const DIRECTORY_ENTRY_SIZE = 46;
+  const END_RECORD_SIZE = 22;
+
+  const directoryAt = LOCAL_HEADER_SIZE + name.length + data.length;
+  const endAt = directoryAt + DIRECTORY_ENTRY_SIZE + name.length;
+  const zip = new Uint8Array(endAt + END_RECORD_SIZE);
+  const view = new DataView(zip.buffer);
+  const LITTLE_ENDIAN = true;
+
+  // Local file header, then the file name, then the file itself.
+  view.setUint32(0, 0x04034b50, LITTLE_ENDIAN);                 // signature
+  view.setUint16(4, 20, LITTLE_ENDIAN);                         // version needed
+  view.setUint16(10, zipTime, LITTLE_ENDIAN);
+  view.setUint16(12, zipDate, LITTLE_ENDIAN);
+  view.setUint32(14, checksum, LITTLE_ENDIAN);
+  view.setUint32(18, data.length, LITTLE_ENDIAN);               // stored size
+  view.setUint32(22, data.length, LITTLE_ENDIAN);               // real size
+  view.setUint16(26, name.length, LITTLE_ENDIAN);
+  zip.set(name, LOCAL_HEADER_SIZE);
+  zip.set(data, LOCAL_HEADER_SIZE + name.length);
+
+  // Central directory: one entry pointing back at the file.
+  view.setUint32(directoryAt, 0x02014b50, LITTLE_ENDIAN);       // signature
+  view.setUint16(directoryAt + 4, 20, LITTLE_ENDIAN);           // version made by
+  view.setUint16(directoryAt + 6, 20, LITTLE_ENDIAN);           // version needed
+  view.setUint16(directoryAt + 12, zipTime, LITTLE_ENDIAN);
+  view.setUint16(directoryAt + 14, zipDate, LITTLE_ENDIAN);
+  view.setUint32(directoryAt + 16, checksum, LITTLE_ENDIAN);
+  view.setUint32(directoryAt + 20, data.length, LITTLE_ENDIAN);
+  view.setUint32(directoryAt + 24, data.length, LITTLE_ENDIAN);
+  view.setUint16(directoryAt + 28, name.length, LITTLE_ENDIAN);
+  zip.set(name, directoryAt + DIRECTORY_ENTRY_SIZE);
+
+  // End record: how many entries, how big the directory is, where it starts.
+  view.setUint32(endAt, 0x06054b50, LITTLE_ENDIAN);             // signature
+  view.setUint16(endAt + 8, 1, LITTLE_ENDIAN);                  // entries on this disk
+  view.setUint16(endAt + 10, 1, LITTLE_ENDIAN);                 // entries in total
+  view.setUint32(endAt + 12, DIRECTORY_ENTRY_SIZE + name.length, LITTLE_ENDIAN);
+  view.setUint32(endAt + 16, directoryAt, LITTLE_ENDIAN);
+
+  return zip;
+}
+
+
+/* ---------- 5. Board picture ----------
+   Painted in the game's own colours, in full, so it reads on a light or dark page. */
+
+// Codes stored in a board square.
+const SQUARE_HOLE = 0x07;
+const SQUARE_ROCKET = 0x0a;
+const SQUARE_MOUSE_FIRST = 0x3d;   // four codes in a row, one per facing direction
+const SQUARE_MOUSE_LAST = 0x40;
+const SQUARE_CAT_FIRST = 0x47;     // four codes in a row, one per facing direction
+const SQUARE_CAT_LAST = 0x4a;
+
+// Facing directions in the order the codes use: down, left, up, right.
+const DIRECTIONS = [[0, 1], [-1, 0], [0, -1], [1, 0]];
+
+const SQUARE_PIXELS = 20;
+
+function drawBoard(canvas, saveBytes) {
+  const size = SQUARE_PIXELS;
+  const sharpness = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = BOARD_COLUMNS * size * sharpness;
+  canvas.height = BOARD_ROWS * size * sharpness;
+
+  const pen = canvas.getContext('2d');
+  pen.scale(sharpness, sharpness);
+
+  function gridValue(gridX, gridY) {
+    return saveBytes[PUZZLE_AT + gridY * BOARD_GRID_WIDTH + gridX];
+  }
+
+  // An arrowhead pointing the way a mouse or cat is facing.
+  function drawArrowhead(centreX, centreY, direction, length, fill, edge) {
+    const [aheadX, aheadY] = DIRECTIONS[direction];
+    const sideX = -aheadY;
+    const sideY = aheadX;
+    const backX = centreX - aheadX * length * 0.7;
+    const backY = centreY - aheadY * length * 0.7;
+
+    pen.beginPath();
+    pen.moveTo(centreX + aheadX * length, centreY + aheadY * length);
+    pen.lineTo(backX + sideX * length * 0.8, backY + sideY * length * 0.8);
+    pen.lineTo(backX - sideX * length * 0.8, backY - sideY * length * 0.8);
+    pen.closePath();
+    pen.fillStyle = fill;
+    pen.fill();
+    pen.strokeStyle = edge;
+    pen.lineWidth = 1;
+    pen.stroke();
+  }
+
+  function drawHole(centreX, centreY) {
+    pen.beginPath();
+    pen.arc(centreX, centreY, 7, 0, 6.3);
+    pen.fillStyle = '#15161b';
+    pen.fill();
+  }
+
+  function drawRocket(centreX, centreY) {
+    pen.fillStyle = '#2b6bd4';
+    pen.fillRect(centreX - 8, centreY - 8, 16, 16);
+    pen.strokeStyle = '#12356f';
+    pen.lineWidth = 1.5;
+    pen.strokeRect(centreX - 8, centreY - 8, 16, 16);
+    pen.beginPath();
+    pen.arc(centreX, centreY, 3.5, 0, 6.3);
+    pen.fillStyle = '#ffd84a';
+    pen.fill();
+  }
+
+  // Checkered floor.
+  for (let row = 0; row < BOARD_ROWS; row++) {
+    for (let column = 0; column < BOARD_COLUMNS; column++) {
+      pen.fillStyle = (column + row) % 2 ? '#dfe9f3' : '#c6d7ea';
+      pen.fillRect(column * size, row * size, size, size);
+    }
+  }
+
+  // What stands on each square.
+  for (let row = 0; row < BOARD_ROWS; row++) {
+    for (let column = 0; column < BOARD_COLUMNS; column++) {
+      const code = gridValue(2 * column + 1, 2 * row + 1);
+      const centreX = column * size + size / 2;
+      const centreY = row * size + size / 2;
+
+      if (code === SQUARE_HOLE) {
+        drawHole(centreX, centreY);
+      } else if (code === SQUARE_ROCKET) {
+        drawRocket(centreX, centreY);
+      } else if (code >= SQUARE_MOUSE_FIRST && code <= SQUARE_MOUSE_LAST) {
+        drawArrowhead(centreX, centreY, code - SQUARE_MOUSE_FIRST, 5, '#ffffff', '#2f3038');
+      } else if (code >= SQUARE_CAT_FIRST && code <= SQUARE_CAT_LAST) {
+        drawArrowhead(centreX, centreY, code - SQUARE_CAT_FIRST, 8.5, '#f08a1c', '#73390a');
+      }
+    }
+  }
+
+  // Walls: any non-zero value on a line between squares.
+  pen.strokeStyle = '#b3372a';
+  pen.lineWidth = 3;
+  pen.lineCap = 'square';
+
+  for (let gridY = 0; gridY < BOARD_GRID_HEIGHT; gridY++) {
+    for (let gridX = 0; gridX < BOARD_GRID_WIDTH; gridX++) {
+      if (!gridValue(gridX, gridY)) {
+        continue;
+      }
+      const left = (gridX >> 1) * size;
+      const top = (gridY >> 1) * size;
+      const isHorizontalWall = gridY % 2 === 0 && gridX % 2 === 1;
+      const isVerticalWall = gridY % 2 === 1 && gridX % 2 === 0;
+
+      if (isHorizontalWall) {
+        pen.beginPath();
+        pen.moveTo(left, top);
+        pen.lineTo(left + size, top);
+        pen.stroke();
+      } else if (isVerticalWall) {
+        pen.beginPath();
+        pen.moveTo(left, top);
+        pen.lineTo(left, top + size);
+        pen.stroke();
+      }
+    }
+  }
+}
+
+
+/* ---------- 6. Adding files ---------- */
+
+// Read one file. Gives { name, bytes }, with bytes set to null if it could not be read.
+function readFile(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve({ name: file.name, bytes: new Uint8Array(reader.result) });
+    reader.onerror = () => resolve({ name: file.name, bytes: null });
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function plural(count, one, many) {
+  return count === 1 ? one : many;
+}
+
+async function addFiles(fileList) {
+  const files = Array.from(fileList);
+  if (files.length === 0) {
+    return;
+  }
+
+  // File names in natural order, so "puzzle2" comes before "puzzle10".
+  files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const loaded = await Promise.all(files.map(readFile));
+
+  let found = [];
+  let vmiCount = 0;
+  const wrongSize = [];
+  const notPuzzle = [];
+
+  for (const file of loaded) {
+    if (/\.vmi$/i.test(file.name)) {
+      vmiCount++;
+      continue;
+    }
+
+    // A single save is one slot; an existing pack is several slots back to back.
+    const isWholeSlots = file.bytes && file.bytes.length > 0 && file.bytes.length % SLOT_SIZE === 0;
+    if (!isWholeSlots) {
+      wrongSize.push(file.name);
+      continue;
+    }
+
+    const slotCount = file.bytes.length / SLOT_SIZE;
+    let foundInFile = 0;
+
+    for (let slot = 0; slot < slotCount; slot++) {
+      const slotBytes = file.bytes.slice(slot * SLOT_SIZE, (slot + 1) * SLOT_SIZE);
+      const sourceName = slotCount > 1 ? file.name + ' #' + (slot + 1) : file.name;
+      const puzzle = readPuzzle(slotBytes, sourceName);
+      if (puzzle) {
+        found.push(puzzle);
+        foundInFile++;
+      }
+    }
+
+    if (foundInFile === 0) {
+      notPuzzle.push(file.name);
+    }
+  }
+
+  // Several files added together go in by save number when they all have one.
+  if (files.length > 1 && found.length > 0 && allHaveSaveNumbers(found)) {
+    found = sortedBySaveNumber(found);
+  }
+
+  const room = MAX_SLOTS - puzzles.length;
+  const leftOut = Math.max(0, found.length - room);
+  puzzles = puzzles.concat(found.slice(0, room));
+
+  const notices = [];
+  if (leftOut > 0) {
+    notices.push('The pack holds 25 puzzles. ' + leftOut + ' ' + plural(leftOut, 'save was', 'saves were') + ' left out. Remove a slot to make room.');
+  }
+  if (wrongSize.length > 0) {
+    notices.push('Skipped ' + wrongSize.join(', ') + ': a puzzle save is exactly 1,536 bytes.');
+  }
+  if (notPuzzle.length > 0) {
+    notices.push('Skipped ' + notPuzzle.join(', ') + ': not a ChuChu Rocket! puzzle save.');
+  }
+  if (vmiCount > 0) {
+    notices.push('Skipped ' + vmiCount + ' VMI ' + plural(vmiCount, 'file', 'files') + '. Only the VMS files are needed.');
+  }
+
+  showNotices(notices);
+  setStatus('', '');
+  drawPage();
+  showSavingUnavailable();
+}
+
+function showNotices(messages) {
+  const box = byId('notices');
+  box.textContent = '';
+  for (const message of messages) {
+    box.appendChild(makeElement('div', 'notice', message));
+  }
+}
+
+
+/* ---------- 7. Drawing the page ---------- */
+
+// Index of the slot being dragged, or null when nothing is.
+let draggedSlot = null;
+
+function makeElement(tag, className, text) {
+  const element = document.createElement(tag);
+  if (className) {
+    element.className = className;
+  }
+  if (text != null) {
+    element.textContent = text;
+  }
+  return element;
+}
+
+function movePuzzle(from, to) {
+  if (to < 0 || to >= puzzles.length || from === to) {
+    return;
+  }
+  const [puzzle] = puzzles.splice(from, 1);
+  puzzles.splice(to, 0, puzzle);
+  drawPage();
+}
+
+function clearDropTargets() {
+  for (const card of document.querySelectorAll('.card.target')) {
+    card.classList.remove('target');
+  }
+}
+
+// After a move the page is redrawn, so put the keyboard focus back on the button that was pressed.
+// If that button is now disabled (the puzzle reached an end), use the opposite one.
+function focusMoveButton(preferredKey, fallbackKey) {
+  let button = document.querySelector('[data-key="' + preferredKey + '"]');
+  if (!button || button.disabled) {
+    button = document.querySelector('[data-key="' + fallbackKey + '"]');
+  }
+  if (button) {
+    button.focus();
+  }
+}
+
+function makeEmptyCard(index) {
+  const card = makeElement('li', 'card empty');
+  card.appendChild(makeElement('span', 'slotno', twoDigits(index + 1)));
+  return card;
+}
+
+function makePuzzleCard(puzzle, index) {
+  const slotNumber = index + 1;
+  const card = makeElement('li', 'card');
+
+  // Top row: slot number, the name it will be saved under, and the buttons.
+  const top = makeElement('div', 'card-top');
+  top.appendChild(makeElement('span', 'slotno', twoDigits(slotNumber)));
+  top.appendChild(makeElement('span', 'dname', 'D' + twoDigits(slotNumber)));
+
+  const earlierKey = 'earlier-' + puzzle.id;
+  const laterKey = 'later-' + puzzle.id;
+
+  const earlierButton = makeElement('button', null, '←');
+  earlierButton.type = 'button';
+  earlierButton.setAttribute('aria-label', 'Move slot ' + slotNumber + ' earlier');
+  earlierButton.disabled = index === 0;
+  earlierButton.dataset.key = earlierKey;
+  earlierButton.onclick = () => {
+    movePuzzle(index, index - 1);
+    focusMoveButton(earlierKey, laterKey);
+  };
+
+  const laterButton = makeElement('button', null, '→');
+  laterButton.type = 'button';
+  laterButton.setAttribute('aria-label', 'Move slot ' + slotNumber + ' later');
+  laterButton.disabled = index === puzzles.length - 1;
+  laterButton.dataset.key = laterKey;
+  laterButton.onclick = () => {
+    movePuzzle(index, index + 1);
+    focusMoveButton(laterKey, earlierKey);
+  };
+
+  const removeButton = makeElement('button', null, '×');
+  removeButton.type = 'button';
+  removeButton.setAttribute('aria-label', 'Remove slot ' + slotNumber);
+  removeButton.onclick = () => {
+    puzzles.splice(index, 1);
+    drawPage();
+  };
+
+  const buttons = makeElement('div', 'btns');
+  buttons.appendChild(earlierButton);
+  buttons.appendChild(laterButton);
+  buttons.appendChild(removeButton);
+  top.appendChild(buttons);
+  card.appendChild(top);
+
+  // Board picture. Drag it onto another card to move the puzzle there.
+  const thumb = makeElement('div', 'thumb');
+  thumb.draggable = true;
+  thumb.title = 'Drag to another slot';
+  const canvas = document.createElement('canvas');
+  drawBoard(canvas, puzzle.bytes);
+  thumb.appendChild(canvas);
+  card.appendChild(thumb);
+
+  thumb.addEventListener('dragstart', event => {
+    draggedSlot = index;
+    event.dataTransfer.effectAllowed = 'move';
+    try {
+      event.dataTransfer.setData('text/plain', String(index));
+    } catch (error) {
+      // Some browsers refuse this; the drag still works without it.
+    }
+  });
+
+  thumb.addEventListener('dragend', () => {
+    draggedSlot = null;
+    clearDropTargets();
+  });
+
+  card.addEventListener('dragover', event => {
+    if (draggedSlot === null) {
+      return;
+    }
+    event.preventDefault();
+    clearDropTargets();
+    card.classList.add('target');
+  });
+
+  card.addEventListener('drop', event => {
+    if (draggedSlot === null) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const from = draggedSlot;
+    draggedSlot = null;
+    movePuzzle(from, index);
+  });
+
+  // Title. It is only rewritten in the save if it was changed here.
+  const titleInput = makeElement('input', 'title');
+  titleInput.type = 'text';
+  titleInput.id = 'title-' + puzzle.id;
+  titleInput.maxLength = TITLE_SIZE;
+  titleInput.value = puzzle.title;
+  titleInput.spellcheck = false;
+  titleInput.autocomplete = 'off';
+  titleInput.placeholder = 'Title, 20 characters';
+  titleInput.setAttribute('aria-label', 'Puzzle title, slot ' + slotNumber);
+
+  titleInput.addEventListener('input', () => {
+    // Typing the original title back, even a Japanese one, counts as no change.
+    if (titleInput.value === puzzle.originalTitle) {
+      puzzle.title = puzzle.originalTitle;
+      puzzle.titleEdited = false;
+      return;
+    }
+    const cleaned = cleanTitle(titleInput.value);
+    if (cleaned !== titleInput.value) {
+      titleInput.value = cleaned;
+    }
+    puzzle.title = cleaned;
+    puzzle.titleEdited = cleaned !== puzzle.originalTitle;
+  });
+  card.appendChild(titleInput);
+
+  // Where the puzzle came from, and a warning if its checksum was wrong.
+  const oldNumber = puzzle.saveName.replace(SAVE_NAME_PREFIX, '');
+  const cameFrom = puzzle.sourceName + (oldNumber ? ' · was ' + oldNumber : '');
+  const meta = makeElement('div', 'meta', cameFrom);
+  if (!puzzle.checksumOk) {
+    meta.appendChild(document.createElement('br'));
+    meta.appendChild(makeElement('span', 'chip', 'wrong checksum, fixed on save'));
+  }
+  card.appendChild(meta);
+
+  return card;
+}
+
+// Redraw everything that depends on which puzzles are in the pack.
+function drawPage() {
+  const slotList = byId('slots');
+  slotList.textContent = '';
+  for (let index = 0; index < MAX_SLOTS; index++) {
+    const puzzle = puzzles[index];
+    slotList.appendChild(puzzle ? makePuzzleCard(puzzle, index) : makeEmptyCard(index));
+  }
+
+  const filled = puzzles.length;
+
+  const pips = byId('pips');
+  pips.textContent = '';
+  for (let index = 0; index < MAX_SLOTS; index++) {
+    pips.appendChild(makeElement('i', index < filled ? 'on' : ''));
+  }
+
+  byId('count').textContent = filled + ' of 25 slots filled';
+  byId('size').textContent = (filled * SLOT_SIZE).toLocaleString('en-US') + ' bytes · ' + (filled * 3) + ' VMU blocks';
+  byId('clear').disabled = filled === 0;
+  byId('sort').disabled = filled < 2 || !allHaveSaveNumbers(puzzles);
+  updateSaveButton();
+}
+
+
+/* ---------- 8. Saving ----------
+   How the file reaches the person depends on where the page is open:
+     'direct'       an ordinary browser download of the .VMS
+     'viewer'       inside Claude, which hands over a .zip holding the .VMS
+     'connecting'   inside Claude, still finding out whether saving is possible
+     'unavailable'  inside a view that cannot save files at all */
+
+let saveMode = 'direct';
+let viewerDownloads = null;
+
+function packFileName() {
+  const typed = byId('out-name').value.replace(/[\\/:*?"<>|\x00-\x1f]/g, '').trim();
+  return typed || DEFAULT_PACK_NAME;
+}
+
+function zipFileName() {
+  return packFileName().replace(/\.[^.]*$/, '') + '.zip';
+}
+
+function updateSaveButton() {
+  const cannotSave = saveMode === 'unavailable' || saveMode === 'connecting';
+  byId('save').disabled = puzzles.length === 0 || cannotSave;
+}
+
+// kind is '', 'good' or 'bad'.
+function setStatus(text, kind) {
+  const status = byId('status');
+  status.textContent = text;
+  status.className = 'status' + (kind ? ' ' + kind : '');
+}
+
+function showSavingUnavailable() {
+  if (saveMode === 'unavailable') {
+    setStatus('Saving files is not available in this view.', 'bad');
+  }
+}
+
+function browserDownload(fileName, bytes) {
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/octet-stream' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+async function savePack() {
+  if (puzzles.length === 0) {
+    return;
+  }
+
+  const pack = buildPack(puzzles);
+  const fileName = packFileName();
+  const count = puzzles.length;
+
+  const summary = count + plural(count, ' puzzle, ', ' puzzles, ') + pack.length.toLocaleString('en-US') + ' bytes';
+  const shortPackNote = count < MAX_SLOTS ? ' The original pack has 25 slots; this one has ' + count + '.' : '';
+
+  if (saveMode !== 'viewer') {
+    browserDownload(fileName, pack);
+    setStatus(fileName + ' sent to your browser’s downloads (' + summary + ').' + shortPackNote, 'good');
+    return;
+  }
+
+  const zipName = zipFileName();
+  try {
+    await viewerDownloads.save({ filename: zipName, data: makeZip(fileName, pack) });
+    setStatus('Saved ' + zipName + '. Extract it to get ' + fileName + ' (' + summary + ').' + shortPackNote, 'good');
+  } catch (error) {
+    const reason = error && error.code;
+    if (reason === 'declined') {
+      setStatus('Save cancelled. Nothing was written.', '');
+    } else if (reason === 'rate_limited') {
+      setStatus('A save prompt is already open. Answer it, then try again.', 'bad');
+    } else {
+      setStatus('This view could not save the file.', 'bad');
+    }
+  }
+}
+
+// Inside Claude, ask whether the page may hand files over. Elsewhere, plain downloads work.
+async function findSaveMode() {
+  const insideClaude = window.claude && typeof window.claude.use === 'function';
+  if (!insideClaude) {
+    return;
+  }
+
+  saveMode = 'connecting';
+  updateSaveButton();
+
+  let downloads = null;
+  try {
+    downloads = await window.claude.use('downloads');
+  } catch (error) {
+    downloads = null;
+  }
+
+  if (downloads) {
+    viewerDownloads = downloads;
+    saveMode = 'viewer';
+  } else {
+    const isTopLevelPage = window.top === window.self;
+    saveMode = isTopLevelPage ? 'direct' : 'unavailable';
+  }
+
+  updateSaveButton();
+  showSavingUnavailable();
+}
+
+
+/* ---------- 9. Buttons and drag-and-drop ---------- */
+
+byId('pick').onclick = () => {
+  byId('file-input').click();
+};
+
+byId('file-input').onchange = event => {
+  addFiles(event.target.files);
+  event.target.value = '';       // so the same file can be chosen again
+};
+
+byId('clear').onclick = () => {
+  puzzles = [];
+  showNotices([]);
+  setStatus('', '');
+  drawPage();
+  showSavingUnavailable();
+};
+
+byId('sort').onclick = () => {
+  puzzles = sortedBySaveNumber(puzzles);
+  drawPage();
+};
+
+byId('save').onclick = savePack;
+byId('out-name').oninput = updateSaveButton;
+
+// Files dropped anywhere on the page are added to the pack.
+function isFileDrag(event) {
+  const types = event.dataTransfer && event.dataTransfer.types;
+  return Boolean(types) && Array.from(types).includes('Files');
+}
+
+document.addEventListener('dragover', event => {
+  if (isFileDrag(event)) {
+    event.preventDefault();
+    byId('drop').classList.add('over');
+  }
+});
+
+document.addEventListener('dragleave', event => {
+  if (!event.relatedTarget) {
+    byId('drop').classList.remove('over');
+  }
+});
+
+document.addEventListener('drop', event => {
+  if (isFileDrag(event)) {
+    event.preventDefault();
+    byId('drop').classList.remove('over');
+    addFiles(event.dataTransfer.files);
+  }
+});
+
+// Start.
+drawPage();
+findSaveMode();
+</script>
+
+</body>
+</html>

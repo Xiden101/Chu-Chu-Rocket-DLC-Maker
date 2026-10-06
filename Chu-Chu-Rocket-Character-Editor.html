@@ -1,0 +1,2797 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chu Chu Rocket! Character Editor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/*
+  Page layout: a workbench.
+  Left:  frame strip, drawing tools, the 32 x 32 drawing canvas, frame actions.
+  Right: Colors, Animation preview and Save file panels.
+  On a narrow screen the two columns stack.
+*/
+
+
+/* ---------- Colors and fonts ---------- */
+
+:root {
+  --bg: #e7eaf0;
+  --surface: #f7f8fb;
+  --surface-strong: #dde2ea;
+  --line: #c2c9d6;
+  --ink: #172033;
+  --ink-soft: #536080;
+  --accent: #d94a14;
+  --accent-ink: #ffffff;
+  --accent-soft: #f9dccf;
+  --focus: #2356d6;
+  --good: #17734a;
+  --bad: #b3261e;
+  --checker-light: #ffffff;
+  --checker-dark: #d5dae3;
+  --grid: rgba(23,32,51,.16);
+  --grid-strong: rgba(23,32,51,.42);
+  --backdrop-blue: #5a8cc8;
+  --backdrop-dark: #12131c;
+  --backdrop-light: #f2f2f2;
+  --font-display: "Chakra Petch", "Trebuchet MS", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* Dark theme, when the device asks for it and the viewer has not forced light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e131f;
+    --surface: #171e2d;
+    --surface-strong: #212a3c;
+    --line: #33405a;
+    --ink: #e8ecf5;
+    --ink-soft: #9ba8c2;
+    --accent: #ff7a3d;
+    --accent-ink: #1b0c04;
+    --accent-soft: #4a2414;
+    --focus: #8fb2ff;
+    --good: #5fd39a;
+    --bad: #ff8f85;
+    --checker-light: #3a4357;
+    --checker-dark: #2b3345;
+    --grid: rgba(232,236,245,.14);
+    --grid-strong: rgba(232,236,245,.4);
+    color-scheme: dark;
+  }
+}
+
+/* Dark theme, when the viewer has forced dark. Same values as above. */
+:root[data-theme="dark"] {
+  --bg: #0e131f;
+  --surface: #171e2d;
+  --surface-strong: #212a3c;
+  --line: #33405a;
+  --ink: #e8ecf5;
+  --ink-soft: #9ba8c2;
+  --accent: #ff7a3d;
+  --accent-ink: #1b0c04;
+  --accent-soft: #4a2414;
+  --focus: #8fb2ff;
+  --good: #5fd39a;
+  --bad: #ff8f85;
+  --checker-light: #3a4357;
+  --checker-dark: #2b3345;
+  --grid: rgba(232,236,245,.14);
+  --grid-strong: rgba(232,236,245,.4);
+  color-scheme: dark;
+}
+
+
+/* ---------- Base ---------- */
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.app {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  padding-block: 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+h1,
+h2 {
+  font-family: var(--font-display);
+  margin: 0;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: .01em;
+  line-height: 1.1;
+}
+
+h2 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+p {
+  margin: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+
+/* ---------- Header ---------- */
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-bottom: 2px solid var(--ink);
+  padding-bottom: 14px;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.subtitle {
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  font: 500 13px/1 var(--font-body);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 9px 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn:hover {
+  border-color: var(--ink-soft);
+}
+
+.btn:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 600;
+}
+
+.btn.primary:hover {
+  filter: brightness(1.07);
+}
+
+.btn[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+.btn.small {
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
+.btn kbd {
+  font: 500 10px/1 var(--font-mono);
+  opacity: .65;
+}
+
+.btn:focus-visible,
+label.btn:focus-within,
+.thumb:focus-visible,
+.swatch:focus-visible,
+input:focus-visible,
+select:focus-visible,
+canvas:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+
+/* ---------- Message bar ---------- */
+
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface-strong);
+  border-left: 4px solid var(--ink-soft);
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.notice.warn {
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.notice.error {
+  border-left-color: var(--bad);
+}
+
+.notice span {
+  min-width: 0;
+  flex: 1 1 240px;
+}
+
+.notice .notice-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+
+/* ---------- Two-column workbench ---------- */
+
+.work {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+@media (min-width: 900px) {
+  .work {
+    grid-template-columns: minmax(0, 1fr) 336px;
+  }
+}
+
+.stage,
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+
+/* ---------- Frame strip ---------- */
+
+.frames {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+
+.slot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.thumbs {
+  display: flex;
+  gap: 6px;
+}
+
+.thumb {
+  width: 58px;
+  padding: 3px 3px 2px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  color: var(--ink-soft);
+  font: 500 10px/1.3 var(--font-mono);
+}
+
+.thumb canvas {
+  width: 50px;
+  height: 50px;
+  border-radius: 3px;
+}
+
+.thumb[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+  color: var(--ink);
+}
+
+.checker {
+  background-color: var(--checker-light);
+  background-image: conic-gradient(var(--checker-dark) 25%, transparent 0 50%, var(--checker-dark) 0 75%, transparent 0);
+  background-size: 10px 10px;
+}
+
+canvas {
+  image-rendering: pixelated;
+  display: block;
+}
+
+
+/* ---------- Toolbars ---------- */
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.bar .separator {
+  width: 1px;
+  align-self: stretch;
+  background: var(--line);
+  margin-inline: 4px;
+}
+
+.readout {
+  margin-left: auto;
+  font: 500 12px/1 var(--font-mono);
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+
+/* ---------- Drawing canvas ---------- */
+
+.canvas-wrap {
+  position: relative;
+  max-width: 560px;
+  width: 100%;
+}
+
+#drawingCanvas {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 1;
+  border: 1px solid var(--ink);
+  border-radius: 4px;
+  touch-action: none;
+  cursor: crosshair;
+  background: var(--checker-light);
+}
+
+.locked #drawingCanvas {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.lock-message {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  font-weight: 500;
+}
+
+.lock-message p {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 14px 16px;
+  max-width: 36ch;
+}
+
+.hint {
+  color: var(--ink-soft);
+  font-size: 12px;
+}
+
+
+/* ---------- Side panels ---------- */
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+
+/* ---------- Colors panel ---------- */
+
+.color-top {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.current-color {
+  width: 56px;
+  height: 56px;
+  border-radius: 6px;
+  border: 1px solid var(--ink);
+  overflow: hidden;
+  flex: none;
+}
+
+.current-color span,
+.swatch span {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.color-top .color-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.field label,
+.label {
+  font: 600 11px/1.2 var(--font-display);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+input[type=text] {
+  font: 500 13px/1.2 var(--font-mono);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 7px 8px;
+  width: 100%;
+  min-width: 0;
+}
+
+input[type=color] {
+  width: 44px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+select {
+  font: 500 13px/1.2 var(--font-body);
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 6px 8px;
+}
+
+.sliders {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) 20px;
+  gap: 6px 8px;
+  align-items: center;
+  font: 500 12px/1 var(--font-mono);
+}
+
+.sliders output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+input[type=range] {
+  width: 100%;
+  accent-color: var(--accent);
+  margin: 0;
+}
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(22px, 1fr));
+  gap: 4px;
+}
+
+.swatch {
+  aspect-ratio: 1;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.swatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--accent);
+  border-color: var(--accent);
+}
+
+
+/* ---------- Animation preview panel ---------- */
+
+.preview {
+  display: flex;
+  gap: 10px;
+}
+
+.preview figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+.preview canvas {
+  width: 100%;
+  max-width: 128px;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+}
+
+.preview figcaption {
+  font: 500 11px/1 var(--font-mono);
+  color: var(--ink-soft);
+}
+
+.backdrop-blue {
+  background: var(--backdrop-blue);
+}
+
+.backdrop-dark {
+  background: var(--backdrop-dark);
+}
+
+.backdrop-light {
+  background: var(--backdrop-light);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.row .grow {
+  flex: 1;
+  min-width: 120px;
+}
+
+
+/* ---------- Save file panel ---------- */
+
+.facts {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  font-size: 12px;
+}
+
+.facts dt {
+  color: var(--ink-soft);
+}
+
+.facts dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.icon-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+#saveIcon {
+  width: 64px;
+  height: 64px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  flex: none;
+}
+
+.status {
+  font-size: 12px;
+  color: var(--ink-soft);
+  min-height: 1.4em;
+}
+
+.status.ok {
+  color: var(--good);
+}
+
+.status.err {
+  color: var(--bad);
+}
+
+
+/* ---------- Footer and motion ---------- */
+
+footer {
+  color: var(--ink-soft);
+  font-size: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  max-width: 80ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <header class="top">
+    <div class="brand">
+      <h1>Chu Chu Rocket! Character Editor</h1>
+      <p class="subtitle">Edit the mouse and cat frames in a Dreamcast VMU character-set save.</p>
+    </div>
+    <div class="actions">
+      <label class="btn" for="fileInput">
+        Open .VMS
+        <input class="visually-hidden" type="file" id="fileInput" accept=".vms,.VMS,application/octet-stream">
+      </label>
+      <button class="btn" type="button" id="btnNew">New blank set</button>
+      <button class="btn primary" type="button" id="btnExport">Export .zip</button>
+    </div>
+  </header>
+
+  <!-- Message bar: what is loaded, warnings, and questions with buttons. -->
+  <div class="notice" id="notice" role="status">
+    <span id="noticeText"></span>
+    <div class="notice-buttons" id="noticeButtons"></div>
+  </div>
+
+  <main class="work">
+
+    <!-- Left column: the frame editor -->
+    <section class="stage" id="stage" aria-label="Frame editor">
+
+      <!-- Frame strip: four mouse frames and four cat frames (filled in by the script) -->
+      <div class="frames" id="frames"></div>
+
+      <div class="bar" role="toolbar" aria-label="Drawing tools">
+        <button class="btn small" type="button" data-tool="pencil" aria-pressed="true">Pencil <kbd>B</kbd></button>
+        <button class="btn small" type="button" data-tool="eraser" aria-pressed="false">Eraser <kbd>E</kbd></button>
+        <button class="btn small" type="button" data-tool="fill" aria-pressed="false">Fill <kbd>G</kbd></button>
+        <button class="btn small" type="button" data-tool="pick" aria-pressed="false">Pick <kbd>I</kbd></button>
+        <span class="separator"></span>
+        <button class="btn small" type="button" id="btnUndo">Undo</button>
+        <button class="btn small" type="button" id="btnRedo">Redo</button>
+        <span class="separator"></span>
+        <button class="btn small" type="button" id="btnGrid" aria-pressed="true">Grid</button>
+        <button class="btn small" type="button" id="btnOnion" aria-pressed="false">Onion skin</button>
+        <span class="readout" id="readout">x -- y --</span>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="drawingCanvas" width="512" height="512" tabindex="0" aria-label="32 by 32 pixel drawing area for the selected frame"></canvas>
+        <div class="lock-message" id="lockMessage" hidden>
+          <p>This save is not a Chu Chu Rocket! character set, so there are no frames to edit. You can still export it with a corrected checksum.</p>
+        </div>
+      </div>
+
+      <div class="bar" aria-label="Frame actions">
+        <button class="btn small" type="button" id="btnCopy">Copy frame</button>
+        <button class="btn small" type="button" id="btnPaste">Paste</button>
+        <button class="btn small" type="button" id="btnClear">Clear</button>
+        <button class="btn small" type="button" id="btnFlipH">Flip ↔</button>
+        <button class="btn small" type="button" id="btnFlipV">Flip ↕</button>
+        <span class="separator"></span>
+        <button class="btn small" type="button" data-shift="-1,0" aria-label="Shift frame left">←</button>
+        <button class="btn small" type="button" data-shift="0,-1" aria-label="Shift frame up">↑</button>
+        <button class="btn small" type="button" data-shift="0,1" aria-label="Shift frame down">↓</button>
+        <button class="btn small" type="button" data-shift="1,0" aria-label="Shift frame right">→</button>
+        <span class="separator"></span>
+        <label class="btn small" for="imageInput">
+          Import image
+          <input class="visually-hidden" type="file" id="imageInput" accept="image/png,image/gif,image/webp,image/jpeg,image/bmp">
+        </label>
+        <button class="btn small" type="button" id="btnPng">Export frames as PNG</button>
+      </div>
+
+      <p class="hint">
+        Import a 32×32 image into the selected frame, a 4-frame strip (128×32) into the selected character,
+        or the full 128×64 sheet into all eight. Alt-click picks a color.
+        <kbd>,</kbd> and <kbd>.</kbd> step between frames.
+      </p>
+    </section>
+
+    <!-- Right column: panels -->
+    <aside class="side">
+
+      <section class="panel" aria-labelledby="colorsHeading">
+        <h2 id="colorsHeading">Colors</h2>
+
+        <div class="color-top">
+          <div class="current-color checker"><span id="currentColor"></span></div>
+          <div class="color-fields">
+            <div class="row">
+              <div class="field grow">
+                <label for="colorCode">Value (A R G B)</label>
+                <input type="text" id="colorCode" maxlength="4" spellcheck="false" autocomplete="off">
+              </div>
+              <div class="field">
+                <label for="colorPicker">Picker</label>
+                <input type="color" id="colorPicker">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- One slider per channel, each 0 to 15. -->
+        <div class="sliders">
+          <label for="alphaSlider">A</label>
+          <input type="range" id="alphaSlider" min="0" max="15" step="1">
+          <output id="alphaValue"></output>
+
+          <label for="redSlider">R</label>
+          <input type="range" id="redSlider" min="0" max="15" step="1">
+          <output id="redValue"></output>
+
+          <label for="greenSlider">G</label>
+          <input type="range" id="greenSlider" min="0" max="15" step="1">
+          <output id="greenValue"></output>
+
+          <label for="blueSlider">B</label>
+          <input type="range" id="blueSlider" min="0" max="15" step="1">
+          <output id="blueValue"></output>
+        </div>
+
+        <div class="field">
+          <span class="label">Colors</span>
+          <div class="swatches" id="swatches"></div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="previewHeading">
+        <h2 id="previewHeading">Animation preview</h2>
+
+        <div class="preview" id="preview">
+          <figure>
+            <canvas id="previewMouse" width="32" height="32"></canvas>
+            <figcaption>Mouse slot</figcaption>
+          </figure>
+          <figure>
+            <canvas id="previewCat" width="32" height="32"></canvas>
+            <figcaption>Cat slot</figcaption>
+          </figure>
+        </div>
+
+        <div class="row">
+          <button class="btn small" type="button" id="btnPlay" aria-pressed="true">Playing</button>
+          <div class="field grow">
+            <label for="previewSpeed">Speed <span id="previewSpeedLabel"></span></label>
+            <input type="range" id="previewSpeed" min="1" max="12" step="1" value="6">
+          </div>
+          <div class="field">
+            <label for="previewBackdrop">Backdrop</label>
+            <select id="previewBackdrop">
+              <option value="">Transparent</option>
+              <option value="backdrop-blue">Blue</option>
+              <option value="backdrop-dark">Dark</option>
+              <option value="backdrop-light">Light</option>
+            </select>
+          </div>
+        </div>
+
+        <p class="hint">Preview speed is this page's own. The game sets its own timing.</p>
+      </section>
+
+      <section class="panel" aria-labelledby="saveFileHeading">
+        <h2 id="saveFileHeading">Save file</h2>
+
+        <div class="icon-row">
+          <canvas id="saveIcon" class="checker" width="32" height="32" aria-label="VMU icon stored in this save"></canvas>
+          <dl class="facts" id="facts"></dl>
+        </div>
+
+        <div class="field">
+          <label for="fileName">File name · up to 8 characters</label>
+          <input type="text" id="fileName" maxlength="8" spellcheck="false" autocomplete="off" placeholder="CHARSET">
+        </div>
+
+        <p class="hint">Export saves one .zip holding the .VMS and its matching .VMI, both under this name. The save's checksum is recalculated every time.</p>
+
+        <div class="row">
+          <button class="btn small primary" type="button" id="btnExportBottom">Export .zip</button>
+        </div>
+
+        <p class="status" id="saveStatus" role="status"></p>
+      </section>
+
+    </aside>
+  </main>
+
+  <footer>
+    <p>Chu Chu Rocket! and Dreamcast are trademarks of SEGA; this page is not affiliated with SEGA.</p>
+  </footer>
+
+</div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   Chu Chu Rocket! Character Editor
+
+   A character-set save holds eight small pictures ("frames"), each
+   32 x 32 pixels: four for the mouse, then four for the cat.
+
+   Sections of this script:
+      1. Save file layout
+      2. Small helpers
+      3. Pixels and colors
+      4. Reading a save
+      5. Editor state
+      6. Loading and writing the save
+      7. Drawing the page
+      8. Messages
+      9. Editing: undo, tools, drawing on the canvas
+     10. Frame actions
+     11. Keyboard shortcuts
+     12. Color controls
+     13. Animation preview controls
+     14. File name
+     15. Zip and VMI files
+     16. Saving
+     17. Opening saves and importing images
+     18. Start
+   ===================================================================== */
+
+
+/* ---------- 1. Save file layout ---------- */
+
+const FRAME_SIZE = 32;                               // a frame is 32 x 32 pixels
+const PIXELS_PER_FRAME = FRAME_SIZE * FRAME_SIZE;    // 1,024
+const FRAME_COUNT = 8;                               // frames 0-3 are the mouse, 4-7 the cat
+const FRAMES_PER_CHARACTER = 4;
+
+// Where things sit in a VMU save header.
+const HEADER_SIZE = 0x80;
+const VMU_NAME_AT = 0x00;        // name on the memory card, 16 bytes
+const VMU_NAME_SIZE = 16;
+const CREATOR_AT = 0x30;         // name of whatever made the save, 16 bytes
+const CREATOR_SIZE = 16;
+const ICON_COUNT_AT = 0x40;      // how many icon pictures follow the header
+const EYECATCH_TYPE_AT = 0x44;   // which kind of large picture follows the icons, if any
+const CHECKSUM_AT = 0x46;        // 2 bytes, low byte first
+const DATA_SIZE_AT = 0x48;       // 4 bytes, low byte first
+const ICON_PALETTE_AT = 0x60;    // 16 colors, 2 bytes each
+const ICON_PIXELS_AT = 0x80;     // 32 x 32 pixels, 4 bits each
+const ICON_SIZE = 512;
+const EYECATCH_SIZES = [0, 8064, 4544, 2048];   // bytes used by eyecatch types 0 to 3
+
+// Each frame is stored as a small PVR texture: a 16-byte header, then 1,024 pixels of 2 bytes.
+const TEXTURE_HEADER_SIZE = 16;
+const TEXTURE_PIXELS_SIZE = PIXELS_PER_FRAME * 2;
+const TEXTURE_FORMAT_ARGB4444 = 2;
+const TEXTURE_LAYOUT_TWIDDLED = 1;
+
+// Text written into the header of every exported character set.
+const VMU_NAME = 'CHU_CHU_ANI';
+const CREATOR = 'SEGA ENTERPRIZES';
+
+const DEFAULT_FILE_NAME = 'CHARSET';
+const FILE_NAME_LENGTH = 8;                    // a .VMI can only hold 8 characters for the name
+const DRAFT_STORAGE_KEY = 'chuchu-editor-draft-v1';
+
+const CANVAS_CELL = 16;                        // drawing-canvas pixels per frame pixel (512 / 32)
+const UNDO_LIMIT = 80;
+const SWATCH_LIMIT = 36;
+
+
+/* ---------- 2. Small helpers ---------- */
+
+function byId(id) {
+  return document.getElementById(id);
+}
+
+function readUint16(bytes, at) {
+  return bytes[at] | (bytes[at + 1] << 8);
+}
+
+function readUint32(bytes, at) {
+  return (bytes[at] | (bytes[at + 1] << 8) | (bytes[at + 2] << 16) | (bytes[at + 3] << 24)) >>> 0;
+}
+
+function writeUint16(bytes, at, value) {
+  bytes[at] = value & 0xff;
+  bytes[at + 1] = value >> 8;
+}
+
+// Write text into a fixed-size field and fill the rest with padByte.
+function writeText(bytes, at, size, text, padByte) {
+  for (let i = 0; i < size; i++) {
+    bytes[at + i] = i < text.length ? text.charCodeAt(i) : padByte;
+  }
+}
+
+// A 16-bit value as four capital hex digits, e.g. "F84C".
+function hex4(value) {
+  return value.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function twoDigits(n) {
+  return String(n).padStart(2, '0');
+}
+
+function bytesToBase64(bytes) {
+  const CHUNK = 0x8000;
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(text) {
+  const binary = atob(text.replace(/\s+/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+// One name is used for the .VMS, the .VMI and the zip:
+// letters, digits, - and _ only, at most 8 characters, no file extension.
+function cleanFileName(text) {
+  return (text || '')
+    .replace(/\.(vms|vmi|zip|png)$/i, '')
+    .replace(/[^A-Za-z0-9_-]+/g, '')
+    .slice(0, FILE_NAME_LENGTH);
+}
+
+// The current value of a color defined in the stylesheet, e.g. themeColor('--accent').
+function themeColor(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+
+/* ---------- 3. Pixels and colors ----------
+   A pixel is one 16-bit number holding alpha, red, green and blue, 4 bits each (0 to 15).
+   Alpha 0 is fully transparent, 15 fully solid. */
+
+function alphaOf(pixel) {
+  return (pixel >> 12) & 15;
+}
+
+function redOf(pixel) {
+  return (pixel >> 8) & 15;
+}
+
+function greenOf(pixel) {
+  return (pixel >> 4) & 15;
+}
+
+function blueOf(pixel) {
+  return pixel & 15;
+}
+
+function makePixel(alpha, red, green, blue) {
+  return (alpha << 12) | (red << 8) | (green << 4) | blue;
+}
+
+// 0-15 scaled up to the 0-255 range screens use.
+function to255(channel) {
+  return channel * 17;
+}
+
+// 0-255 rounded to the nearest 0-15 step.
+function to15(value) {
+  return Math.round(value / 17);
+}
+
+function cssColor(pixel) {
+  return 'rgba(' + to255(redOf(pixel)) + ',' + to255(greenOf(pixel)) + ',' + to255(blueOf(pixel)) + ',' + (alphaOf(pixel) / 15) + ')';
+}
+
+// Put one pixel into the red, green, blue, alpha byte list a canvas uses.
+function setImagePixel(imageBytes, index, pixel) {
+  imageBytes[4 * index] = to255(redOf(pixel));
+  imageBytes[4 * index + 1] = to255(greenOf(pixel));
+  imageBytes[4 * index + 2] = to255(blueOf(pixel));
+  imageBytes[4 * index + 3] = to255(alphaOf(pixel));
+}
+
+function frameToImage(frame) {
+  const image = new ImageData(FRAME_SIZE, FRAME_SIZE);
+  for (let i = 0; i < PIXELS_PER_FRAME; i++) {
+    setImagePixel(image.data, i, frame[i]);
+  }
+  return image;
+}
+
+function blankFrames() {
+  return Array.from({ length: FRAME_COUNT }, () => new Uint16Array(PIXELS_PER_FRAME));
+}
+
+// The save does not store pixels row by row. It stores them "twiddled": the bits of the
+// row and column numbers are woven together, so position (x, y) lives at a zig-zag index.
+// TWIDDLED_INDEX[y * 32 + x] gives that index.
+function spreadBits(n) {
+  let spread = 0;
+  for (let bit = 0; bit < 5; bit++) {
+    spread |= ((n >> bit) & 1) << (2 * bit);
+  }
+  return spread;
+}
+
+const TWIDDLED_INDEX = new Uint16Array(PIXELS_PER_FRAME);
+for (let y = 0; y < FRAME_SIZE; y++) {
+  for (let x = 0; x < FRAME_SIZE; x++) {
+    TWIDDLED_INDEX[y * FRAME_SIZE + x] = spreadBits(y) | (spreadBits(x) << 1);
+  }
+}
+
+
+/* ---------- 4. Reading a save ---------- */
+
+// VMU save checksum: CRC-16 (polynomial 0x1021, starting at 0),
+// with the two checksum bytes themselves counted as zero.
+function vmuChecksum(bytes, length) {
+  let crc = 0;
+  for (let i = 0; i < length; i++) {
+    const isChecksumByte = i === CHECKSUM_AT || i === CHECKSUM_AT + 1;
+    const value = isChecksumByte ? 0 : bytes[i];
+    crc ^= value << 8;
+    for (let bit = 0; bit < 8; bit++) {
+      if (crc & 0x8000) {
+        crc = ((crc << 1) ^ 0x1021) & 0xffff;
+      } else {
+        crc = (crc << 1) & 0xffff;
+      }
+    }
+  }
+  return crc;
+}
+
+// Find every 32 x 32 frame texture from `start` onward.
+// Returns the position of each one's pixel data.
+function findFrameTextures(bytes, start) {
+  const found = [];
+  const textureSize = TEXTURE_HEADER_SIZE + TEXTURE_PIXELS_SIZE;
+
+  for (let at = start; at + textureSize <= bytes.length; at++) {
+    const startsWithPVRT = bytes[at] === 0x50 && bytes[at + 1] === 0x56 && bytes[at + 2] === 0x52 && bytes[at + 3] === 0x54;
+    if (!startsWithPVRT) {
+      continue;
+    }
+    const isFrameTexture =
+      bytes[at + 8] === TEXTURE_FORMAT_ARGB4444 &&
+      bytes[at + 9] === TEXTURE_LAYOUT_TWIDDLED &&
+      readUint16(bytes, at + 12) === FRAME_SIZE &&
+      readUint16(bytes, at + 14) === FRAME_SIZE;
+
+    if (isFrameTexture) {
+      found.push(at + TEXTURE_HEADER_SIZE);
+      at += textureSize - 1;      // carry on after this texture
+    }
+  }
+  return found;
+}
+
+// Work out where everything is in a save. Throws an Error with a readable message
+// if the bytes are not a VMU save at all.
+function readSaveLayout(bytes) {
+  if (bytes.length < HEADER_SIZE) {
+    throw new Error('That file is too small to be a VMU save (under 128 bytes).');
+  }
+
+  const iconCount = readUint16(bytes, ICON_COUNT_AT);
+  const eyecatchType = readUint16(bytes, EYECATCH_TYPE_AT);
+  const dataSize = readUint32(bytes, DATA_SIZE_AT);
+  const dataStart = HEADER_SIZE + iconCount * ICON_SIZE + (EYECATCH_SIZES[eyecatchType] || 0);
+
+  if (iconCount > 64 || eyecatchType > 3 || dataStart > bytes.length) {
+    throw new Error('That file does not have a VMU data-save header. Open the .VMS file itself, not a .VMI or .DCI.');
+  }
+
+  // The checksum covers the header, the pictures and the data the header declares.
+  const warnings = [];
+  let checksumEnd = dataStart + dataSize;
+  if (checksumEnd > bytes.length) {
+    checksumEnd = bytes.length;
+    warnings.push('The header declares more data than the file holds, so the checksum covers the whole file.');
+  }
+
+  const frameOffsets = findFrameTextures(bytes, dataStart);
+
+  return {
+    iconCount: iconCount,
+    dataSize: dataSize,
+    checksumEnd: checksumEnd,
+    frameOffsets: frameOffsets,                           // where each frame's pixels start
+    isCharacterSet: frameOffsets.length === FRAME_COUNT,  // false: a VMU save, but nothing to edit
+    warnings: warnings
+  };
+}
+
+
+/* ---------- 5. Editor state ---------- */
+
+const editor = {
+  bytes: null,              // the whole save file being edited
+  layout: null,             // result of readSaveLayout(bytes)
+  fileName: DEFAULT_FILE_NAME,
+  frames: [],               // eight lists of 1,024 pixels, in ordinary row-by-row order
+  selectedFrame: 0,
+
+  tool: 'pencil',           // 'pencil', 'eraser', 'fill' or 'pick'
+  color: makePixel(15, 0, 0, 0),
+  showGrid: true,
+  showOnionSkin: false,     // faintly show the previous frame under the current one
+
+  undoStack: [],
+  redoStack: [],
+  copiedFrame: null,
+  hasUnexportedChanges: false,
+
+  previewPlaying: !window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  previewStep: 0
+};
+
+const drawingCanvas = byId('drawingCanvas');
+const drawingPen = drawingCanvas.getContext('2d');
+const thumbnailPens = [];   // one canvas pen per frame thumbnail
+let hoveredCell = null;     // { x, y } under the pointer, or null
+
+
+/* ---------- 6. Loading and writing the save ---------- */
+
+function loadSave(bytes, fileName) {
+  const layout = readSaveLayout(bytes);     // throws before anything is replaced
+
+  editor.bytes = bytes;
+  editor.layout = layout;
+  editor.fileName = (fileName || DEFAULT_FILE_NAME).replace(/\.(vms|zip)$/i, '');
+
+  editor.frames = blankFrames();
+  if (layout.isCharacterSet) {
+    layout.frameOffsets.forEach((offset, frameIndex) => {
+      const frame = editor.frames[frameIndex];
+      for (let i = 0; i < PIXELS_PER_FRAME; i++) {
+        frame[i] = readUint16(bytes, offset + 2 * TWIDDLED_INDEX[i]);
+      }
+    });
+  }
+
+  editor.selectedFrame = 0;
+  editor.undoStack = [];
+  editor.redoStack = [];
+  editor.hasUnexportedChanges = false;
+
+  byId('fileName').value = cleanFileName(editor.fileName);
+
+  // A save with no frames locks the drawing tools.
+  const canEdit = layout.isCharacterSet;
+  byId('stage').classList.toggle('locked', !canEdit);
+  byId('lockMessage').hidden = canEdit;
+  for (const control of document.querySelectorAll('#stage .btn, #stage input')) {
+    if ('disabled' in control) {
+      control.disabled = !canEdit;
+    }
+  }
+
+  drawEverything();
+}
+
+// Copy the frames back into the save bytes. The checksum is written at export.
+function writeFramesIntoSave() {
+  if (!editor.layout.isCharacterSet) {
+    return;
+  }
+  editor.layout.frameOffsets.forEach((offset, frameIndex) => {
+    const frame = editor.frames[frameIndex];
+    for (let i = 0; i < PIXELS_PER_FRAME; i++) {
+      writeUint16(editor.bytes, offset + 2 * TWIDDLED_INDEX[i], frame[i]);
+    }
+  });
+}
+
+// The finished .VMS: frames, header text and a fresh checksum.
+function buildVms() {
+  writeFramesIntoSave();
+
+  if (editor.layout.isCharacterSet) {
+    writeText(editor.bytes, VMU_NAME_AT, VMU_NAME_SIZE, VMU_NAME, 0x20);
+    writeText(editor.bytes, CREATOR_AT, CREATOR_SIZE, CREATOR, 0x00);
+  }
+
+  const checksum = vmuChecksum(editor.bytes, editor.layout.checksumEnd);
+  writeUint16(editor.bytes, CHECKSUM_AT, checksum);
+
+  return editor.bytes.slice();
+}
+
+function exportName() {
+  return cleanFileName(editor.fileName) || DEFAULT_FILE_NAME;
+}
+
+// The work in progress is kept in this browser so a reload does not lose it.
+let draftTimer = 0;
+
+function saveDraftNow() {
+  try {
+    const draft = { n: editor.fileName, b: bytesToBase64(editor.bytes) };
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch (error) {
+    // Browser storage is unavailable or full; the editor works without it.
+  }
+}
+
+function saveDraftSoon() {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraftNow, 700);
+}
+
+
+/* ---------- 7. Drawing the page ---------- */
+
+// Paint one frame onto the big drawing canvas, each pixel as a 16 x 16 square.
+function paintFrameOnCanvas(frame, opacity) {
+  drawingPen.globalAlpha = opacity;
+  for (let i = 0; i < PIXELS_PER_FRAME; i++) {
+    const pixel = frame[i];
+    if (alphaOf(pixel) > 0) {
+      const x = i % FRAME_SIZE;
+      const y = Math.floor(i / FRAME_SIZE);
+      drawingPen.fillStyle = cssColor(pixel);
+      drawingPen.fillRect(x * CANVAS_CELL, y * CANVAS_CELL, CANVAS_CELL, CANVAS_CELL);
+    }
+  }
+  drawingPen.globalAlpha = 1;
+}
+
+// The frame before this one in the same character, wrapping from the first to the last.
+function previousFrameOf(frameIndex) {
+  const firstOfCharacter = frameIndex - (frameIndex % FRAMES_PER_CHARACTER);
+  const position = frameIndex % FRAMES_PER_CHARACTER;
+  return firstOfCharacter + (position + FRAMES_PER_CHARACTER - 1) % FRAMES_PER_CHARACTER;
+}
+
+function drawCanvas() {
+  const fullSize = FRAME_SIZE * CANVAS_CELL;
+
+  // Checkerboard, so transparent pixels can be told apart from colored ones.
+  const lightSquare = themeColor('--checker-light');
+  const darkSquare = themeColor('--checker-dark');
+  for (let y = 0; y < FRAME_SIZE; y++) {
+    for (let x = 0; x < FRAME_SIZE; x++) {
+      drawingPen.fillStyle = (x + y) % 2 ? darkSquare : lightSquare;
+      drawingPen.fillRect(x * CANVAS_CELL, y * CANVAS_CELL, CANVAS_CELL, CANVAS_CELL);
+    }
+  }
+
+  if (!editor.layout || !editor.layout.isCharacterSet) {
+    return;
+  }
+
+  if (editor.showOnionSkin) {
+    paintFrameOnCanvas(editor.frames[previousFrameOf(editor.selectedFrame)], 0.28);
+  }
+  paintFrameOnCanvas(editor.frames[editor.selectedFrame], 1);
+
+  // Grid lines between pixels, stronger every 8.
+  if (editor.showGrid) {
+    for (let i = 1; i < FRAME_SIZE; i++) {
+      drawingPen.fillStyle = i % 8 === 0 ? themeColor('--grid-strong') : themeColor('--grid');
+      drawingPen.fillRect(i * CANVAS_CELL, 0, 1, fullSize);
+      drawingPen.fillRect(0, i * CANVAS_CELL, fullSize, 1);
+    }
+  }
+
+  // Outline the pixel under the pointer.
+  if (hoveredCell) {
+    drawingPen.strokeStyle = themeColor('--accent');
+    drawingPen.lineWidth = 2;
+    drawingPen.strokeRect(hoveredCell.x * CANVAS_CELL + 1, hoveredCell.y * CANVAS_CELL + 1, CANVAS_CELL - 2, CANVAS_CELL - 2);
+  }
+}
+
+// Build the strip of eight thumbnail buttons once, at start.
+function buildFrameStrip() {
+  const strip = byId('frames');
+  strip.textContent = '';
+
+  ['Mouse slot', 'Cat slot'].forEach((label, characterIndex) => {
+    const group = document.createElement('div');
+    group.className = 'slot';
+
+    const heading = document.createElement('h2');
+    heading.textContent = label;
+    group.appendChild(heading);
+
+    const row = document.createElement('div');
+    row.className = 'thumbs';
+
+    for (let position = 0; position < FRAMES_PER_CHARACTER; position++) {
+      const frameIndex = characterIndex * FRAMES_PER_CHARACTER + position;
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'thumb';
+      button.dataset.frame = frameIndex;
+      button.setAttribute('aria-label', label + ' frame ' + (position + 1));
+      button.addEventListener('click', () => selectFrame(frameIndex));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = FRAME_SIZE;
+      canvas.height = FRAME_SIZE;
+      canvas.className = 'checker';
+      thumbnailPens[frameIndex] = canvas.getContext('2d');
+
+      button.appendChild(canvas);
+      button.appendChild(document.createTextNode(String(position + 1)));
+      row.appendChild(button);
+    }
+
+    group.appendChild(row);
+    strip.appendChild(group);
+  });
+}
+
+function drawThumbnails() {
+  editor.frames.forEach((frame, frameIndex) => {
+    thumbnailPens[frameIndex].putImageData(frameToImage(frame), 0, 0);
+  });
+  for (const button of document.querySelectorAll('.thumb')) {
+    const isSelected = Number(button.dataset.frame) === editor.selectedFrame;
+    button.setAttribute('aria-pressed', String(isSelected));
+  }
+}
+
+// The preview shows the same step (1 to 4) of both characters.
+function drawPreview() {
+  const position = editor.previewStep % FRAMES_PER_CHARACTER;
+  byId('previewMouse').getContext('2d').putImageData(frameToImage(editor.frames[position]), 0, 0);
+  byId('previewCat').getContext('2d').putImageData(frameToImage(editor.frames[FRAMES_PER_CHARACTER + position]), 0, 0);
+}
+
+// Show the current color in the big swatch, the code box, the sliders and the picker.
+function drawColorControls() {
+  const color = editor.color;
+  const channels = [
+    ['alpha', alphaOf(color)],
+    ['red', redOf(color)],
+    ['green', greenOf(color)],
+    ['blue', blueOf(color)]
+  ];
+
+  byId('currentColor').style.background = cssColor(color);
+
+  // Do not overwrite the code box while someone is typing in it.
+  if (document.activeElement !== byId('colorCode')) {
+    byId('colorCode').value = hex4(color);
+  }
+
+  for (const [name, value] of channels) {
+    byId(name + 'Slider').value = value;
+    byId(name + 'Value').textContent = value.toString(16).toUpperCase();
+  }
+
+  const pickerHex = [redOf(color), greenOf(color), blueOf(color)]
+    .map(channel => to255(channel).toString(16).padStart(2, '0'))
+    .join('');
+  byId('colorPicker').value = '#' + pickerHex;
+
+  for (const swatch of document.querySelectorAll('.swatch')) {
+    swatch.setAttribute('aria-pressed', String(Number(swatch.dataset.pixel) === color));
+  }
+}
+
+// One swatch for each of the most-used colors across all eight frames.
+function drawSwatches() {
+  const useCount = new Map();
+  for (const frame of editor.frames) {
+    for (let i = 0; i < PIXELS_PER_FRAME; i++) {
+      const pixel = frame[i];
+      if (alphaOf(pixel) > 0) {
+        useCount.set(pixel, (useCount.get(pixel) || 0) + 1);
+      }
+    }
+  }
+
+  const mostUsed = Array.from(useCount.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, SWATCH_LIMIT)
+    .map(entry => entry[0]);
+
+  const box = byId('swatches');
+  box.textContent = '';
+
+  if (mostUsed.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.style.gridColumn = '1/-1';
+    empty.textContent = 'No colors yet. Draw something and they will collect here.';
+    box.appendChild(empty);
+    return;
+  }
+
+  for (const pixel of mostUsed) {
+    const swatch = document.createElement('button');
+    swatch.type = 'button';
+    swatch.className = 'swatch checker';
+    swatch.dataset.pixel = pixel;
+    swatch.title = hex4(pixel);
+    swatch.setAttribute('aria-label', 'Color ' + hex4(pixel));
+    swatch.setAttribute('aria-pressed', String(pixel === editor.color));
+
+    const fill = document.createElement('span');
+    fill.style.background = cssColor(pixel);
+    swatch.appendChild(fill);
+
+    swatch.addEventListener('click', () => {
+      editor.color = pixel;
+      if (editor.tool === 'eraser' || editor.tool === 'pick') {
+        setTool('pencil');
+      }
+      drawColorControls();
+    });
+
+    box.appendChild(swatch);
+  }
+}
+
+// The save's own icon: 32 x 32 pixels, each a number 0-15 picking one of 16 palette colors.
+function drawSaveIcon() {
+  const bytes = editor.bytes;
+  const canvas = byId('saveIcon');
+  canvas.hidden = editor.layout.iconCount === 0;
+
+  const hasIcon = editor.layout.iconCount > 0 && bytes.length >= ICON_PIXELS_AT + ICON_SIZE;
+  if (!hasIcon) {
+    return;
+  }
+
+  const image = new ImageData(FRAME_SIZE, FRAME_SIZE);
+  for (let i = 0; i < PIXELS_PER_FRAME; i++) {
+    // Two pixels share a byte: the left one in the high half, the right one in the low half.
+    const pair = bytes[ICON_PIXELS_AT + (i >> 1)];
+    const paletteIndex = i % 2 === 0 ? pair >> 4 : pair & 15;
+    const pixel = readUint16(bytes, ICON_PALETTE_AT + 2 * paletteIndex);
+    setImagePixel(image.data, i, pixel);
+  }
+  canvas.getContext('2d').putImageData(image, 0, 0);
+}
+
+function drawFilePanel() {
+  drawSaveIcon();
+
+  const bytes = editor.bytes;
+  const layout = editor.layout;
+  const name = exportName();
+
+  const facts = [
+    ['Size', bytes.length.toLocaleString('en-US') + ' bytes · ' + Math.ceil(bytes.length / 512) + ' blocks'],
+    ['Data length', layout.dataSize.toLocaleString('en-US') + ' bytes'],
+    ['Icon frames', String(layout.iconCount)],
+    ['Textures', layout.isCharacterSet ? '8 × 32×32 twiddled' : layout.frameOffsets.length + ' found (8 needed)'],
+    ['Exports as', name + '.VMS + ' + name + '.VMI']
+  ];
+
+  const list = byId('facts');
+  list.textContent = '';
+  for (const [term, value] of facts) {
+    const termElement = document.createElement('dt');
+    termElement.textContent = term;
+    const valueElement = document.createElement('dd');
+    valueElement.textContent = value;
+    list.append(termElement, valueElement);
+  }
+}
+
+function drawEverything() {
+  drawCanvas();
+  drawThumbnails();
+  drawPreview();
+  drawColorControls();
+  drawSwatches();
+  drawFilePanel();
+}
+
+
+/* ---------- 8. Messages ---------- */
+
+// The bar under the header. kind is '', 'warn' or 'error'.
+// buttons is an optional list of [label, whatToDo] pairs.
+function showNotice(text, kind, buttons) {
+  const bar = byId('notice');
+  bar.className = 'notice' + (kind ? ' ' + kind : '');
+  bar.hidden = false;
+  byId('noticeText').textContent = text;
+
+  const buttonBox = byId('noticeButtons');
+  buttonBox.textContent = '';
+  for (const [label, whatToDo] of buttons || []) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'btn small';
+    button.textContent = label;
+    button.addEventListener('click', whatToDo);
+    buttonBox.appendChild(button);
+  }
+}
+
+// The line under the Export button. kind is '', 'ok' or 'err'.
+function showStatus(text, kind) {
+  const line = byId('saveStatus');
+  line.textContent = text;
+  line.className = 'status' + (kind ? ' ' + kind : '');
+}
+
+
+/* ---------- 9. Editing: undo, tools, drawing on the canvas ---------- */
+
+function copyOfAllFrames() {
+  return editor.frames.map(frame => frame.slice());
+}
+
+// Call before changing any frame, so the change can be undone.
+function rememberForUndo() {
+  editor.undoStack.push(copyOfAllFrames());
+  if (editor.undoStack.length > UNDO_LIMIT) {
+    editor.undoStack.shift();
+  }
+  editor.redoStack = [];
+}
+
+// Call after changing any frame: update the save bytes, the page and the stored draft.
+function framesChanged() {
+  editor.hasUnexportedChanges = true;
+  writeFramesIntoSave();
+  drawCanvas();
+  drawThumbnails();
+  drawPreview();
+  drawSwatches();
+  saveDraftSoon();
+}
+
+function undo() {
+  if (editor.undoStack.length === 0) {
+    return;
+  }
+  editor.redoStack.push(copyOfAllFrames());
+  editor.frames = editor.undoStack.pop();
+  framesChanged();
+}
+
+function redo() {
+  if (editor.redoStack.length === 0) {
+    return;
+  }
+  editor.undoStack.push(copyOfAllFrames());
+  editor.frames = editor.redoStack.pop();
+  framesChanged();
+}
+
+// Stepping past either end wraps around.
+function selectFrame(frameIndex) {
+  editor.selectedFrame = (frameIndex + FRAME_COUNT) % FRAME_COUNT;
+  drawCanvas();
+  drawThumbnails();
+}
+
+function setTool(tool) {
+  editor.tool = tool;
+  for (const button of document.querySelectorAll('[data-tool]')) {
+    button.setAttribute('aria-pressed', String(button.dataset.tool === tool));
+  }
+}
+
+// What the pencil and fill put down. The eraser, and a color with no alpha, both leave a clear pixel.
+function paintPixelValue() {
+  if (editor.tool === 'eraser' || alphaOf(editor.color) === 0) {
+    return 0;
+  }
+  return editor.color;
+}
+
+function paintCell(x, y) {
+  editor.frames[editor.selectedFrame][y * FRAME_SIZE + x] = paintPixelValue();
+}
+
+// Paint every cell on the straight line between two cells (Bresenham's line),
+// so a fast drag leaves no gaps.
+function paintLine(from, to) {
+  let x = from.x;
+  let y = from.y;
+  const distanceX = Math.abs(to.x - x);
+  const distanceY = -Math.abs(to.y - y);
+  const stepX = x < to.x ? 1 : -1;
+  const stepY = y < to.y ? 1 : -1;
+  let error = distanceX + distanceY;
+
+  for (;;) {
+    paintCell(x, y);
+    if (x === to.x && y === to.y) {
+      break;
+    }
+    const doubled = 2 * error;
+    if (doubled >= distanceY) {
+      error += distanceY;
+      x += stepX;
+    }
+    if (doubled <= distanceX) {
+      error += distanceX;
+      y += stepY;
+    }
+  }
+}
+
+// Fill the touching area of same-colored pixels, spreading up, down, left and right.
+function floodFill(startX, startY) {
+  const frame = editor.frames[editor.selectedFrame];
+  const start = startY * FRAME_SIZE + startX;
+  const oldPixel = frame[start];
+  const newPixel = paintPixelValue();
+  if (oldPixel === newPixel) {
+    return;
+  }
+
+  const waiting = [start];
+  while (waiting.length > 0) {
+    const i = waiting.pop();
+    if (frame[i] !== oldPixel) {
+      continue;
+    }
+    frame[i] = newPixel;
+
+    const x = i % FRAME_SIZE;
+    if (x > 0) {
+      waiting.push(i - 1);
+    }
+    if (x < FRAME_SIZE - 1) {
+      waiting.push(i + 1);
+    }
+    if (i >= FRAME_SIZE) {
+      waiting.push(i - FRAME_SIZE);
+    }
+    if (i < PIXELS_PER_FRAME - FRAME_SIZE) {
+      waiting.push(i + FRAME_SIZE);
+    }
+  }
+}
+
+function pickColorAt(x, y) {
+  const pixel = editor.frames[editor.selectedFrame][y * FRAME_SIZE + x];
+  if (alphaOf(pixel) > 0) {
+    editor.color = pixel;
+    setTool('pencil');
+    drawColorControls();
+  } else {
+    setTool('eraser');
+    showStatus('Picked a transparent pixel, so the eraser is selected.');
+  }
+}
+
+// Which frame pixel a pointer event is over.
+function cellUnderPointer(event) {
+  const box = drawingCanvas.getBoundingClientRect();
+  const x = Math.floor((event.clientX - box.left) / box.width * FRAME_SIZE);
+  const y = Math.floor((event.clientY - box.top) / box.height * FRAME_SIZE);
+  return {
+    x: Math.max(0, Math.min(FRAME_SIZE - 1, x)),
+    y: Math.max(0, Math.min(FRAME_SIZE - 1, y))
+  };
+}
+
+let isDrawing = false;
+let lastCell = null;
+
+drawingCanvas.addEventListener('pointerdown', event => {
+  const isMainButton = !(event.button > 0);
+  if (!editor.layout.isCharacterSet || !isMainButton) {
+    return;
+  }
+  event.preventDefault();
+  const cell = cellUnderPointer(event);
+
+  if (event.altKey || editor.tool === 'pick') {
+    pickColorAt(cell.x, cell.y);
+    return;
+  }
+
+  rememberForUndo();
+
+  if (editor.tool === 'fill') {
+    floodFill(cell.x, cell.y);
+    framesChanged();
+    return;
+  }
+
+  // Pencil or eraser: start a stroke that continues while the pointer is held down.
+  try {
+    drawingCanvas.setPointerCapture(event.pointerId);
+  } catch (error) {
+    // Not every pointer can be captured; the stroke still works.
+  }
+  isDrawing = true;
+  lastCell = cell;
+  paintCell(cell.x, cell.y);
+  drawCanvas();
+});
+
+drawingCanvas.addEventListener('pointermove', event => {
+  if (!editor.layout.isCharacterSet) {
+    return;
+  }
+  const cell = cellUnderPointer(event);
+  hoveredCell = cell;
+
+  const pixel = editor.frames[editor.selectedFrame][cell.y * FRAME_SIZE + cell.x];
+  byId('readout').textContent = 'x ' + twoDigits(cell.x) + ' y ' + twoDigits(cell.y) + ' · ' + hex4(pixel);
+
+  if (isDrawing) {
+    paintLine(lastCell, cell);
+    lastCell = cell;
+  }
+  drawCanvas();
+});
+
+function endStroke() {
+  if (isDrawing) {
+    isDrawing = false;
+    framesChanged();
+  }
+}
+
+drawingCanvas.addEventListener('pointerup', endStroke);
+drawingCanvas.addEventListener('pointercancel', endStroke);
+
+drawingCanvas.addEventListener('pointerleave', () => {
+  hoveredCell = null;
+  byId('readout').textContent = 'x -- y --';
+  drawCanvas();
+});
+
+drawingCanvas.addEventListener('contextmenu', event => event.preventDefault());
+
+
+/* ---------- 10. Frame actions ---------- */
+
+// Replace the selected frame with a rearranged copy.
+// fillNewFrame(oldFrame, newFrame) fills in newFrame, which starts out fully clear.
+function changeSelectedFrame(fillNewFrame) {
+  if (!editor.layout.isCharacterSet) {
+    return;
+  }
+  rememberForUndo();
+  const oldFrame = editor.frames[editor.selectedFrame];
+  const newFrame = new Uint16Array(PIXELS_PER_FRAME);
+  fillNewFrame(oldFrame, newFrame);
+  editor.frames[editor.selectedFrame] = newFrame;
+  framesChanged();
+}
+
+function flipHorizontally() {
+  changeSelectedFrame((oldFrame, newFrame) => {
+    for (let y = 0; y < FRAME_SIZE; y++) {
+      for (let x = 0; x < FRAME_SIZE; x++) {
+        newFrame[y * FRAME_SIZE + x] = oldFrame[y * FRAME_SIZE + (FRAME_SIZE - 1 - x)];
+      }
+    }
+  });
+}
+
+function flipVertically() {
+  changeSelectedFrame((oldFrame, newFrame) => {
+    for (let y = 0; y < FRAME_SIZE; y++) {
+      for (let x = 0; x < FRAME_SIZE; x++) {
+        newFrame[y * FRAME_SIZE + x] = oldFrame[(FRAME_SIZE - 1 - y) * FRAME_SIZE + x];
+      }
+    }
+  });
+}
+
+function clearFrame() {
+  changeSelectedFrame(() => {});
+}
+
+// Slide the picture by one pixel; what leaves one edge comes back in on the other.
+function shiftFrame(moveX, moveY) {
+  changeSelectedFrame((oldFrame, newFrame) => {
+    for (let y = 0; y < FRAME_SIZE; y++) {
+      for (let x = 0; x < FRAME_SIZE; x++) {
+        const newX = (x + moveX + FRAME_SIZE) % FRAME_SIZE;
+        const newY = (y + moveY + FRAME_SIZE) % FRAME_SIZE;
+        newFrame[newY * FRAME_SIZE + newX] = oldFrame[y * FRAME_SIZE + x];
+      }
+    }
+  });
+}
+
+function copyFrame() {
+  editor.copiedFrame = editor.frames[editor.selectedFrame].slice();
+  showStatus('Frame copied. Select another frame and press Paste.');
+}
+
+function pasteFrame() {
+  if (!editor.copiedFrame) {
+    showStatus('Nothing copied yet. Use Copy frame first.');
+    return;
+  }
+  changeSelectedFrame((oldFrame, newFrame) => newFrame.set(editor.copiedFrame));
+}
+
+byId('btnFlipH').addEventListener('click', flipHorizontally);
+byId('btnFlipV').addEventListener('click', flipVertically);
+byId('btnClear').addEventListener('click', clearFrame);
+byId('btnCopy').addEventListener('click', copyFrame);
+byId('btnPaste').addEventListener('click', pasteFrame);
+byId('btnUndo').addEventListener('click', undo);
+byId('btnRedo').addEventListener('click', redo);
+
+for (const button of document.querySelectorAll('[data-shift]')) {
+  button.addEventListener('click', () => {
+    const [moveX, moveY] = button.dataset.shift.split(',').map(Number);
+    shiftFrame(moveX, moveY);
+  });
+}
+
+for (const button of document.querySelectorAll('[data-tool]')) {
+  button.addEventListener('click', () => setTool(button.dataset.tool));
+}
+
+byId('btnGrid').addEventListener('click', event => {
+  editor.showGrid = !editor.showGrid;
+  event.currentTarget.setAttribute('aria-pressed', String(editor.showGrid));
+  drawCanvas();
+});
+
+byId('btnOnion').addEventListener('click', event => {
+  editor.showOnionSkin = !editor.showOnionSkin;
+  event.currentTarget.setAttribute('aria-pressed', String(editor.showOnionSkin));
+  drawCanvas();
+});
+
+
+/* ---------- 11. Keyboard shortcuts ---------- */
+
+const TOOL_KEYS = { b: 'pencil', e: 'eraser', g: 'fill', i: 'pick' };
+
+document.addEventListener('keydown', event => {
+  // Leave typing in text boxes and menus alone.
+  const target = event.target;
+  const isTyping = target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName);
+  if (isTyping) {
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+  const commandHeld = event.ctrlKey || event.metaKey;
+
+  if (commandHeld && key === 'z') {
+    event.preventDefault();
+    if (event.shiftKey) {
+      redo();
+    } else {
+      undo();
+    }
+    return;
+  }
+  if (commandHeld && key === 'y') {
+    event.preventDefault();
+    redo();
+    return;
+  }
+  if (commandHeld || event.altKey) {
+    return;
+  }
+
+  if (TOOL_KEYS[key]) {
+    setTool(TOOL_KEYS[key]);
+  } else if (key === ',') {
+    selectFrame(editor.selectedFrame - 1);
+  } else if (key === '.') {
+    selectFrame(editor.selectedFrame + 1);
+  }
+});
+
+
+/* ---------- 12. Color controls ---------- */
+
+// Each slider replaces its own 4 bits of the color and leaves the rest.
+const CHANNEL_SHIFT = { alpha: 12, red: 8, green: 4, blue: 0 };
+
+for (const [name, shift] of Object.entries(CHANNEL_SHIFT)) {
+  byId(name + 'Slider').addEventListener('input', event => {
+    const value = Number(event.target.value);
+    editor.color = (editor.color & ~(15 << shift)) | (value << shift);
+    drawColorControls();
+  });
+}
+
+// Typing a complete four-digit code sets the color.
+byId('colorCode').addEventListener('input', event => {
+  const typed = event.target.value.trim();
+  if (/^[0-9a-fA-F]{4}$/.test(typed)) {
+    editor.color = parseInt(typed, 16);
+    drawColorControls();
+  }
+});
+
+byId('colorCode').addEventListener('blur', drawColorControls);
+
+// The browser's own picker gives 0-255 per channel; round each to the nearest of the 16 steps.
+byId('colorPicker').addEventListener('input', event => {
+  const rgb = parseInt(event.target.value.slice(1), 16);
+  const red = to15(rgb >> 16);
+  const green = to15((rgb >> 8) & 255);
+  const blue = to15(rgb & 255);
+  const alpha = alphaOf(editor.color) || 15;     // a clear color becomes solid
+
+  editor.color = makePixel(alpha, red, green, blue);
+  if (editor.tool !== 'fill') {
+    setTool('pencil');
+  }
+  drawColorControls();
+});
+
+
+/* ---------- 13. Animation preview controls ---------- */
+
+let previewTimer = 0;
+
+// Apply the chosen speed and the playing/paused state.
+function restartPreview() {
+  clearInterval(previewTimer);
+
+  const framesPerSecond = Number(byId('previewSpeed').value);
+  byId('previewSpeedLabel').textContent = '· ' + framesPerSecond + ' fps';
+
+  if (editor.previewPlaying) {
+    previewTimer = setInterval(() => {
+      editor.previewStep++;
+      drawPreview();
+    }, 1000 / framesPerSecond);
+  }
+
+  const playButton = byId('btnPlay');
+  playButton.setAttribute('aria-pressed', String(editor.previewPlaying));
+  playButton.textContent = editor.previewPlaying ? 'Playing' : 'Paused';
+}
+
+byId('previewSpeed').addEventListener('input', restartPreview);
+
+byId('btnPlay').addEventListener('click', () => {
+  editor.previewPlaying = !editor.previewPlaying;
+  restartPreview();
+});
+
+// The menu's values are the style names for each backdrop; "" means transparent.
+byId('previewBackdrop').addEventListener('change', event => {
+  byId('previewMouse').className = event.target.value;
+  byId('previewCat').className = event.target.value;
+});
+
+
+/* ---------- 14. File name ---------- */
+
+byId('fileName').addEventListener('input', event => {
+  const cleaned = event.target.value.replace(/[^A-Za-z0-9_-]+/g, '').slice(0, FILE_NAME_LENGTH);
+  if (cleaned !== event.target.value) {
+    event.target.value = cleaned;
+    showStatus('File names can use letters, digits, - and _ only.');
+  }
+  editor.fileName = cleaned;
+  drawFilePanel();
+  saveDraftSoon();
+});
+
+
+/* ---------- 15. Zip and VMI files ---------- */
+
+// Lookup table for the zip checksum (CRC-32).
+const CRC32_TABLE = new Uint32Array(256);
+for (let i = 0; i < 256; i++) {
+  let value = i;
+  for (let bit = 0; bit < 8; bit++) {
+    value = (value & 1) ? 0xEDB88320 ^ (value >>> 1) : value >>> 1;
+  }
+  CRC32_TABLE[i] = value >>> 0;
+}
+
+function crc32(bytes) {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) {
+    crc = CRC32_TABLE[(crc ^ bytes[i]) & 255] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function joinBytes(pieces) {
+  const total = pieces.reduce((sum, piece) => sum + piece.length, 0);
+  const joined = new Uint8Array(total);
+  let at = 0;
+  for (const piece of pieces) {
+    joined.set(piece, at);
+    at += piece.length;
+  }
+  return joined;
+}
+
+// Make a zip holding the given files, stored as they are (no compression).
+// files is a list of { name, data }.
+function makeZip(files) {
+  const LITTLE_ENDIAN = true;
+  const LOCAL_HEADER_SIZE = 30;
+  const DIRECTORY_ENTRY_SIZE = 46;
+  const END_RECORD_SIZE = 22;
+
+  const now = new Date();
+  const zipDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  const zipTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+
+  const fileParts = [];        // each file's header followed by the file itself
+  const directoryParts = [];   // one directory entry per file
+  let position = 0;            // where the next file's header will start
+
+  for (const file of files) {
+    const name = new TextEncoder().encode(file.name);
+    const checksum = crc32(file.data);
+    const size = file.data.length;
+
+    const localHeader = new Uint8Array(LOCAL_HEADER_SIZE + name.length);
+    const local = new DataView(localHeader.buffer);
+    local.setUint32(0, 0x04034b50, LITTLE_ENDIAN);     // signature
+    local.setUint16(4, 20, LITTLE_ENDIAN);             // version needed
+    local.setUint16(10, zipTime, LITTLE_ENDIAN);
+    local.setUint16(12, zipDate, LITTLE_ENDIAN);
+    local.setUint32(14, checksum, LITTLE_ENDIAN);
+    local.setUint32(18, size, LITTLE_ENDIAN);          // stored size
+    local.setUint32(22, size, LITTLE_ENDIAN);          // real size
+    local.setUint16(26, name.length, LITTLE_ENDIAN);
+    localHeader.set(name, LOCAL_HEADER_SIZE);
+
+    const directoryEntry = new Uint8Array(DIRECTORY_ENTRY_SIZE + name.length);
+    const entry = new DataView(directoryEntry.buffer);
+    entry.setUint32(0, 0x02014b50, LITTLE_ENDIAN);     // signature
+    entry.setUint16(4, 20, LITTLE_ENDIAN);             // version made by
+    entry.setUint16(6, 20, LITTLE_ENDIAN);             // version needed
+    entry.setUint16(12, zipTime, LITTLE_ENDIAN);
+    entry.setUint16(14, zipDate, LITTLE_ENDIAN);
+    entry.setUint32(16, checksum, LITTLE_ENDIAN);
+    entry.setUint32(20, size, LITTLE_ENDIAN);
+    entry.setUint32(24, size, LITTLE_ENDIAN);
+    entry.setUint16(28, name.length, LITTLE_ENDIAN);
+    entry.setUint32(42, position, LITTLE_ENDIAN);      // where this file's header starts
+    directoryEntry.set(name, DIRECTORY_ENTRY_SIZE);
+
+    fileParts.push(localHeader, file.data);
+    directoryParts.push(directoryEntry);
+    position += localHeader.length + size;
+  }
+
+  const directorySize = directoryParts.reduce((sum, part) => sum + part.length, 0);
+
+  const endRecord = new Uint8Array(END_RECORD_SIZE);
+  const end = new DataView(endRecord.buffer);
+  end.setUint32(0, 0x06054b50, LITTLE_ENDIAN);         // signature
+  end.setUint16(8, files.length, LITTLE_ENDIAN);       // entries on this disk
+  end.setUint16(10, files.length, LITTLE_ENDIAN);      // entries in total
+  end.setUint32(12, directorySize, LITTLE_ENDIAN);
+  end.setUint32(16, position, LITTLE_ENDIAN);          // where the directory starts
+
+  return joinBytes([...fileParts, ...directoryParts, endRecord]);
+}
+
+// A .VMI is the 108-byte note that travels with a .VMS. It names the .VMS,
+// says what to call the save on the memory card, and records its size and a timestamp.
+function buildVmi(vmsName, vmuName, vmsSize) {
+  const LITTLE_ENDIAN = true;
+  const vmi = new Uint8Array(108);
+  const view = new DataView(vmi.buffer);
+  const now = new Date();
+
+  // Check value: the first four characters of the name, each combined with a letter of "SEGA".
+  for (let i = 0; i < 4; i++) {
+    vmi[i] = (vmsName.charCodeAt(i) || 0) & 'SEGA'.charCodeAt(i);
+  }
+
+  // 0x04-0x23 description and 0x24-0x43 copyright are left empty.
+
+  view.setUint16(0x44, now.getFullYear(), LITTLE_ENDIAN);
+  vmi[0x46] = now.getMonth() + 1;
+  vmi[0x47] = now.getDate();
+  vmi[0x48] = now.getHours();
+  vmi[0x49] = now.getMinutes();
+  vmi[0x4a] = now.getSeconds();
+  vmi[0x4b] = now.getDay();                        // 0 is Sunday
+
+  vmi[0x4c] = 0;                                   // VMI version, as written by existing VMIs for this game
+  vmi[0x4d] = 1;
+  view.setUint16(0x4e, 1, LITTLE_ENDIAN);          // file number
+
+  for (let i = 0; i < 8 && i < vmsName.length; i++) {
+    vmi[0x50 + i] = vmsName.charCodeAt(i) & 0x7f;  // name of the .VMS, without ".VMS"
+  }
+  for (let i = 0; i < 12 && i < vmuName.length; i++) {
+    vmi[0x58 + i] = vmuName.charCodeAt(i) & 0x7f;  // name of the save on the memory card
+  }
+
+  view.setUint16(0x64, 0, LITTLE_ENDIAN);          // a data file that may be copied
+  view.setUint32(0x68, vmsSize, LITTLE_ENDIAN);
+
+  return vmi;
+}
+
+// The name the save will have on the memory card.
+// Character sets get the fixed name; any other save keeps the name in its own header.
+function vmuFileName() {
+  if (editor.layout.isCharacterSet) {
+    return VMU_NAME;
+  }
+  let name = '';
+  for (let i = 0; i < 12; i++) {
+    const code = editor.bytes[i];
+    const isPrintable = code >= 0x21 && code <= 0x7e;
+    if (!isPrintable) {
+      break;
+    }
+    name += String.fromCharCode(code);
+  }
+  return name || 'CHU_CHU__C00';
+}
+
+
+/* ---------- 16. Saving ----------
+   How a file reaches the person depends on where the page is open:
+     'direct'       an ordinary browser download
+     'viewer'       inside Claude, which shows its own save prompt
+     'connecting'   inside Claude, still finding out whether saving is possible */
+
+const insideClaude = Boolean(window.claude && window.claude.use);
+let saveMode = insideClaude ? 'connecting' : 'direct';
+let viewerDownloads = null;
+
+async function findSaveMode() {
+  if (!insideClaude) {
+    return;
+  }
+  try {
+    viewerDownloads = await window.claude.use('downloads');
+  } catch (error) {
+    viewerDownloads = null;
+  }
+  saveMode = viewerDownloads ? 'viewer' : 'direct';
+}
+
+function browserDownload(fileName, data) {
+  const blob = data instanceof Blob ? data : new Blob([data], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+}
+
+const SAVE_PROBLEMS = {
+  declined: 'Save cancelled.',
+  rate_limited: 'A save prompt is already open. Answer it, then try again.',
+  too_large: 'That file is too large to save from here.'
+};
+
+// Hand a file to the person, then show doneMessage.
+async function saveFile(fileName, data, doneMessage) {
+  if (saveMode === 'connecting') {
+    showStatus('Still connecting to the viewer. Try again in a moment.');
+    return;
+  }
+
+  if (!viewerDownloads) {
+    browserDownload(fileName, data);
+    showStatus(doneMessage, 'ok');
+    return;
+  }
+
+  try {
+    await viewerDownloads.save({ filename: fileName, data: data });
+    showStatus(doneMessage, 'ok');
+  } catch (error) {
+    const reason = error && error.code;
+    showStatus(SAVE_PROBLEMS[reason] || 'Saving is not available in this view. Use the offline copy of this editor to export.', 'err');
+  }
+}
+
+// Export: one zip holding the .VMS and its .VMI, both under the chosen file name.
+async function exportSave() {
+  const name = exportName();
+  const vms = buildVms();                      // includes the fresh checksum
+  const vmi = buildVmi(name, vmuFileName(), vms.length);
+  editor.hasUnexportedChanges = false;
+
+  const zip = makeZip([
+    { name: name + '.VMS', data: vms },
+    { name: name + '.VMI', data: vmi }
+  ]);
+  await saveFile(name + '.zip', zip, 'Saved ' + name + '.zip with ' + name + '.VMS and ' + name + '.VMI. Checksum updated.');
+}
+
+// All eight frames as one 128 x 64 picture: mouse frames on the top row, cat frames below.
+function exportFramesAsPng() {
+  const sheet = document.createElement('canvas');
+  sheet.width = FRAMES_PER_CHARACTER * FRAME_SIZE;
+  sheet.height = 2 * FRAME_SIZE;
+  const pen = sheet.getContext('2d');
+
+  editor.frames.forEach((frame, frameIndex) => {
+    const column = frameIndex % FRAMES_PER_CHARACTER;
+    const row = Math.floor(frameIndex / FRAMES_PER_CHARACTER);
+    pen.putImageData(frameToImage(frame), column * FRAME_SIZE, row * FRAME_SIZE);
+  });
+
+  const fileName = exportName() + '_frames.png';
+  sheet.toBlob(blob => {
+    if (blob) {
+      saveFile(fileName, blob, 'Saved ' + fileName + '.');
+    }
+  }, 'image/png');
+}
+
+byId('btnExport').addEventListener('click', exportSave);
+byId('btnExportBottom').addEventListener('click', exportSave);
+byId('btnPng').addEventListener('click', exportFramesAsPng);
+
+
+/* ---------- 17. Opening saves and importing images ---------- */
+
+const KEEP_EDITING = ['Keep editing', () => showNotice('Kept your current set.')];
+
+function openSave(bytes, fileName) {
+  try {
+    loadSave(bytes, fileName);
+  } catch (error) {
+    showNotice(error.message, 'error');
+    return;
+  }
+
+  const warnings = editor.layout.warnings.join(' ');
+  if (editor.layout.isCharacterSet) {
+    showNotice(('Editing ' + fileName + '. ' + warnings).trim());
+  } else {
+    const found = editor.layout.frameOffsets.length;
+    showNotice(fileName + ' is a VMU save but not a Chu Chu Rocket! character set (' + found + ' of 8 frame textures found). It can still be exported with a corrected checksum. ' + warnings, 'warn');
+  }
+  saveDraftNow();
+}
+
+// Opening a file replaces the current work, so ask first if there are changes not yet exported.
+function askToOpen(file) {
+  const open = () => {
+    file.arrayBuffer().then(
+      buffer => openSave(new Uint8Array(buffer), file.name),
+      () => showNotice('That file could not be read.', 'error')
+    );
+  };
+
+  if (editor.hasUnexportedChanges) {
+    showNotice('You have changes that are not exported yet. Opening ' + file.name + ' replaces them.', 'warn', [['Open anyway', open], KEEP_EDITING]);
+  } else {
+    open();
+  }
+}
+
+// The built-in example set, stored as text at the end of this file.
+function exampleSaveBytes() {
+  return base64ToBytes(byId('exampleSave').textContent);
+}
+
+function loadExample() {
+  loadSave(exampleSaveBytes(), 'SnailStorm');
+  showNotice('An example set is loaded: a jet-shelled snail and a storm cloud. Open your own .VMS to edit it, or start from a blank set.');
+}
+
+// A blank set is the example's file with all eight frames cleared.
+function startBlankSet() {
+  loadSave(exampleSaveBytes(), 'NewSet');
+  editor.frames = blankFrames();
+  writeFramesIntoSave();
+  editor.hasUnexportedChanges = true;
+  drawEverything();
+  showNotice('Blank set created from the built-in template. All eight frames are empty.');
+}
+
+function askToStartBlankSet() {
+  if (editor.hasUnexportedChanges) {
+    showNotice('You have changes that are not exported yet. A blank set replaces them.', 'warn', [['Start blank', startBlankSet], KEEP_EDITING]);
+  } else {
+    startBlankSet();
+  }
+}
+
+// Bring a picture into the frames. What it fills depends on its shape:
+//   exactly 128 x 64      all eight frames
+//   about four times as wide as tall   the four frames of the selected character
+//   anything else          the selected frame, shrunk to fit and centred
+async function importImage(file) {
+  if (!editor.layout.isCharacterSet) {
+    return;
+  }
+
+  let picture;
+  try {
+    picture = await createImageBitmap(file);
+  } catch (error) {
+    showNotice('That image could not be read. PNG, GIF, WebP, JPEG and BMP work.', 'error');
+    return;
+  }
+
+  const widthToHeight = picture.width / picture.height;
+  const isFullSheet = picture.width === 128 && picture.height === 64;
+  const isStrip = !isFullSheet && widthToHeight >= 3.5 && widthToHeight <= 4.5;
+  const isSingleFrame = !isFullSheet && !isStrip;
+
+  // Draw the picture onto a small canvas the size of what it will fill.
+  const targetWidth = isSingleFrame ? FRAME_SIZE : FRAMES_PER_CHARACTER * FRAME_SIZE;
+  const targetHeight = isFullSheet ? 2 * FRAME_SIZE : FRAME_SIZE;
+  const isExactSize = picture.width === targetWidth && picture.height === targetHeight;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const pen = canvas.getContext('2d', { willReadFrequently: true });
+  pen.imageSmoothingEnabled = !isExactSize;    // keep pixel art crisp when no resizing is needed
+  pen.imageSmoothingQuality = 'high';
+
+  if (isSingleFrame) {
+    const scale = Math.min(FRAME_SIZE / picture.width, FRAME_SIZE / picture.height);
+    const width = picture.width * scale;
+    const height = picture.height * scale;
+    pen.drawImage(picture, (FRAME_SIZE - width) / 2, (FRAME_SIZE - height) / 2, width, height);
+  } else {
+    pen.drawImage(picture, 0, 0, targetWidth, targetHeight);
+  }
+
+  const imageBytes = pen.getImageData(0, 0, targetWidth, targetHeight).data;
+
+  // Which frames to fill, in the order they appear in the picture.
+  let targetFrames;
+  if (isFullSheet) {
+    targetFrames = [0, 1, 2, 3, 4, 5, 6, 7];
+  } else if (isStrip) {
+    const firstOfCharacter = editor.selectedFrame < FRAMES_PER_CHARACTER ? 0 : FRAMES_PER_CHARACTER;
+    targetFrames = [0, 1, 2, 3].map(position => firstOfCharacter + position);
+  } else {
+    targetFrames = [editor.selectedFrame];
+  }
+
+  rememberForUndo();
+
+  targetFrames.forEach((frameIndex, order) => {
+    const left = isSingleFrame ? 0 : (order % FRAMES_PER_CHARACTER) * FRAME_SIZE;
+    const top = isFullSheet ? Math.floor(order / FRAMES_PER_CHARACTER) * FRAME_SIZE : 0;
+    const frame = new Uint16Array(PIXELS_PER_FRAME);
+
+    for (let y = 0; y < FRAME_SIZE; y++) {
+      for (let x = 0; x < FRAME_SIZE; x++) {
+        const at = ((top + y) * targetWidth + left + x) * 4;
+        const alpha = to15(imageBytes[at + 3]);
+        if (alpha > 0) {
+          frame[y * FRAME_SIZE + x] = makePixel(alpha, to15(imageBytes[at]), to15(imageBytes[at + 1]), to15(imageBytes[at + 2]));
+        }
+      }
+    }
+    editor.frames[frameIndex] = frame;
+  });
+
+  framesChanged();
+
+  if (isFullSheet) {
+    showNotice('Imported the sheet into all eight frames.');
+  } else if (isStrip) {
+    const character = editor.selectedFrame < FRAMES_PER_CHARACTER ? 'mouse' : 'cat';
+    showNotice('Imported the strip into the four ' + character + ' frames.');
+  } else {
+    const position = editor.selectedFrame % FRAMES_PER_CHARACTER + 1;
+    showNotice('Imported the image into frame ' + position + (isExactSize ? '' : ', scaled to 32×32') + '.');
+  }
+}
+
+byId('fileInput').addEventListener('change', event => {
+  const file = event.target.files[0];
+  event.target.value = '';        // so the same file can be chosen again
+  if (file) {
+    askToOpen(file);
+  }
+});
+
+byId('imageInput').addEventListener('change', event => {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (file) {
+    importImage(file);
+  }
+});
+
+byId('btnNew').addEventListener('click', askToStartBlankSet);
+
+// A file dropped anywhere on the page: pictures are imported, anything else is opened as a save.
+document.addEventListener('dragover', event => event.preventDefault());
+
+document.addEventListener('drop', event => {
+  event.preventDefault();
+  const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+  if (!file) {
+    return;
+  }
+  if (file.type.startsWith('image/')) {
+    importImage(file);
+  } else {
+    askToOpen(file);
+  }
+});
+
+
+/* ---------- 18. Start ---------- */
+
+// The canvas reads its checkerboard and grid colors from the theme, so repaint when the theme changes.
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', drawCanvas);
+new MutationObserver(drawCanvas).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// Try to load a stored piece of work ({ n: file name, b: save as base64 text }).
+// Returns true if it loaded.
+function tryLoadStoredWork(stored) {
+  if (!stored || !stored.b) {
+    return false;
+  }
+  try {
+    loadSave(base64ToBytes(stored.b), stored.n);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+function readDraft() {
+  try {
+    return JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY));
+  } catch (error) {
+    return null;
+  }
+}
+
+function forgetDraft() {
+  try {
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch (error) {
+    // Nothing to forget if browser storage is unavailable.
+  }
+}
+
+// carriedOver is work handed across when the page is updated while open inside Claude.
+function startEditor(carriedOver) {
+  buildFrameStrip();
+  restartPreview();
+
+  if (tryLoadStoredWork(carriedOver)) {
+    editor.hasUnexportedChanges = true;
+    showNotice('Editor updated. Your work in progress is still here.');
+    return;
+  }
+
+  const draft = readDraft();
+  if (tryLoadStoredWork(draft)) {
+    const loadExampleInstead = () => {
+      forgetDraft();
+      loadExample();
+    };
+    showNotice('Picked up where you left off with ' + draft.n + '.', '', [['Load the example instead', loadExampleInstead]]);
+    return;
+  }
+
+  loadExample();
+}
+
+// Inside Claude, an open page can be replaced by a newer version of itself.
+// Hand the work in progress to the new version so nothing is lost.
+const liveUpdate = window.claude && window.claude.hot;
+
+function registerLiveUpdate() {
+  if (!liveUpdate || !liveUpdate.snapshot) {
+    return;
+  }
+  try {
+    liveUpdate.snapshot(() => {
+      writeFramesIntoSave();
+      return { n: editor.fileName, b: bytesToBase64(editor.bytes) };
+    });
+  } catch (error) {
+    // Live updates are optional.
+  }
+}
+</script>
+
+<!-- The built-in example set: a complete 17,408-byte .VMS file, written as base64 text. -->
+<script type="text/plain" id="exampleSave">
+Q0hVX0NIVV9fQzAwICAgIENIVUNIVSEvQ0hBUkEgICAgICAgICAgICAgICAgICAgIkcFIkcFThImKYSHhIQAAAEAAQAAAGywAEEAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAA//+C/oL+gv6C/nL9Yv1i/GH8UfxS+CH0IvMj8iPxI/H/////////////////////////////////////////////////////////////////////
+////8P////////////////////////////D/////D////ty7u83v/////////////8upURR6vO///////////+ylEREREUrN//////////7KERERERERm9//
+///////8oREUZ4dkERnO////////yhESaYZWiWMRrP///////rURJ4URERWXIUvf//////2hEVlBV4dSSGEaz//////8kRJ2FpZWlhWTFs//////+1EUhDhR
+EVhClRK/////D/sRFJNJMREXYWYRvf/////7NjSUOWJoFnFnEb3w////+1lShhWZlRdhdhG+//////x3cVlBRUFYQ5YVz//////9pJQmhTE1hhWEGs//////
+/rR4MliZmGJJYTvf///////KOIQSRUIUhzGs////////7JN5ZDI1eXMXvf////////25JYmZmYUhe9//////////3KQkVVQROr3///////////7LpiERarzf
+/////////w///cy7u8zf/////////////////d7////w////////////////////////////////////////////////////////////////////////////
+/////////////0dCSVgIAAAA1nMAAAAAAABQVlJUCAgAAAIBAAAgACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABNS
+AAAAAAAAAAAAACPSAAA08wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABPCAAATMgAAAAAAAAAAAAAjEhMyJOITMhOCRfSr+hOS
+EzKr+kX03v019P//q/o19N79q/r//wAAAAATUgAAAAAAAAAAAAAj4hOiNPOU9hNyE0KE9VT0zfz//yTjifj//838ifgk4xNyE7J493j3E3ITEiTiE4Ij8qX2
+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
+cv5y/WH8Yv1h/GH8gv5h/GH8gv5h/GH8cvwz84L+U/iC/mH8cv1y/XL9gv1h/IL+1fjV+NX41fik9aT1pPWk9dX4xffV+MX3pPWk9aT1pPUz8xMSVPQTMgAA
+AAAAAAAAZPQTUnT0E3IAAAAAAAAAAMX4xfeE9cX3pPWk9aT1pPUz88X3M/Wk9qT1pPWk9aT1dPUTgoT1E4IAAAAAAAAAAIT1E4KE9ROCAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABOycvwTsnL8gv6C/oL+gv4TomP7E3JD94L+gv6C/oL+Yfxy/WH8cv5y/WH8Yfxy/WH8cv5i/WL9
+Yfxy/XL+YfwTIiPzAAATkoL+gv5D94L+AAATEQAAAAAT0mP6EyIT0oL+UfyC/nL9cv5y/mH8cv2C/oL+Q/eC/oL+YvyC/oL+AAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAExEAAAAAAAAAAAAAAAAAAAAAAAAAABOSI/MAABNyQ/dj+0b0VvUAABOCAAAAADTzRfQTMiP0AAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE5IAACMSAAAAAAAAAAAAAAAAAAAAAHL9YfyC/mL9cv1y/WL9cv2C/mH8cv1y/oL+Yv1i/WH8
+YfyC/mH8gv5R/IL+UfyC/mL9cv2C/mH8YfyC/nL9gv5h/GH8cv6C/mL9gv5y/WL9UfxR/IL+gv5h/HL9gv6C/nL9Yfxh/IL+gv5j+oL+I/OC/oL+cvwz9DP1
+ZPQTgkPzQ/eU9UP3lPWk9aT1pPWk9UP2pPYj88X4pPWk9aT1pPV09ROCdPQTcgAAAAAAAAAAZPQTUlT0EzIAAAAAAAAAAFT01fi199X4pPWk9bT2pPbV+NX4
+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
+cv1i/XL9Yv2C/nL9cv1h/IL+YfyC/mL8cv1y/nL9gv4z9YL+gv5h/IL+gv4TokP3AAATooL+gv5D9oL9cv2C/mH8Yv1i/WH8cv6C/oL+Yv2C/oL+YfxR/IL+
+gv4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE2Ij4gAAE0IAAAAAAAAAAAAAE1IAAAAAQ/dj+jXzVvVy/HL8RfRF9CTz
+RfQTIhNyRfRF9CPzQvsAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE0IT4wAAEyEAAAAAAAAAAAAAAAAAAAAAYfyC/mH8gv5h/IL+
+UfyC/nL+cv1y/WH8YfyC/nL+cv1R/IL+UfyC/lP5dPVj+mT0UfyC/mH8gv5T+HT1M/Wk9mH8gv5y/nL9cv5R/GH8cv1h/GL9gv6C/oL+gv6C/UP2gv5y/YL+
+M/UT8sX4E9Kl90P3E7ITshMRE1J09SMSM+PV+MX31fjF96T1pPWk9aT11fjF99X4xfik9aT1pPWk9YT1E4J09BNyAAAAAAAAAABk9BNiVPQTQgAAAAAAAAAA
+1fjV+NX41fik9aT1pPWk9dX41fjV+NX4tPaD9MT3Q/Mz8xMSI9IAAAAAAAAAAAAAE5IAABMyAAAAAAAAAAAAAGP6Q/dW9Xj3I/ITglb1E0JF9EX0MvoTsiTz
+E1ITIgAAAAAAAAAAAAAAABNyAAAAAAAAAAAAAAAAAAAAAAAAAAAj8xMiEzIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAhPXV+BOiQ/Ok9hOyI9ITIgAAEyEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABHQklYCAAAANJzAAAAAAAAUFZSVAgIAAACAQAAIAAgAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEyIAAAAAAAAAAAAAAAAAAAAAExETchPSR/QTwiTy
+WvZq9wAAAAAAAAAAIxIj0hOSR/UAACMSE2ITsiTia/c283v3WfZ794z5jPlq92r3jPhq94z5jPmM+Yz5jPlr94z5a/cAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAABNCEzIT0iTiWfYTISTiE6JI9Vn2e/h794z5AAAAAAAAAAAAABMiAAATYgAAAAAAAAAAAAATggAAE5Ik8mr3R/Rq93z4jPmM+Iz5
+SPVq91n1aveM+Iz5e/iM+Tb0WfZq92r3avdY9Wr3NvSM+Yz4jPmM+Wr3WfZ7+Gr3WPaM+SPyaveM+Gr3R/Q18xPyJPI28yTyu/v//+7+VvaM+Yz5jPmM+Yz5
+aveM+Wr3jPmM+Yz5jPmM+Wr3jPhq91n2E/Jq9zXzmvlW9iTyVvVq91n2avdq91n2avdq92r3AAAAAAAAAAAAAAAAAAAAACTyE8Jq91r2E3ITEUf0E9IAAAAA
+AAAAAAAAAAAAAAAAAAAAABMiAAAAAAAAAAAAAGr3avdq92r3avdY9Wr3avdq92r3avdq92r3avdq92r3I9IjEkf1E5IAAAAAAAAAAGr2JOJq9jXzIxIAABMy
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATIROS
+IyITEjXyE7IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGr3avc29Gr2avdq92r3ave7+zXzNfRF9Gr3avdq9mr3WvY39Fn2SPUTUhOCE5ITgln1
+SPVZ9Uj1E9IAACTyIyIk8iTyNvRZ9mr3avdq91j1avdq92r3avdq9iTyWfU281j1SPVI9Uj1NfMTQjb0E2JI9Uj1SPVI9Tf0E4JH9BOCNfKL9DXyi/TP9Vjz
+z/Vo8xMyE6IAAAAANfITshMhExITggAAE4IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATUhMRE4Ik4nn0AAAAABMi
+EyIAAAAAAAAAACTiJNK+9Yv0EhEAABOyAAAAAAAAAAAAAAAAE4IAABNiAAAAAAAAAAAAABMhAAAAAEj1avdH9Gr3aveM+Gr3avck8mr3E6JI9Wr3avdq92r3
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATIiTiAAATQln2avck8ln2AAAAAAAAAAATQhPSAAASEYz5jPlr92r3a/dq92r3avdq92r3avdq92r3
+avdq92r3avdq9mr3NvRq92r3JfNH9Gr2E/JH9CPyZ/aJ+N39JPNq92r3avdq92r3avZq90f0NvRZ9hNyJPJq90f0aveM+SPyNPMT8lj27/7d/Ub0ePc29Iz5
+jPmM+Wv3WvZr92r3AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACPiAAATomr3jPhZ9Wv3AAATUgAAAAA182r3E7JH9Iz5jPl7+Gv3
+avdq92r3avdq92r3avdq92r3avdq92r3AAAAAAAAAAATEhPCAAAAAAAAAAAAAAAAAAAAAAAAAAA29Fr2E3IT0mr3avcl8zXzAAAAAAAAAAATIhNCAAAAAGr3
+avdI9Wr3WfYl82r3NfM08zb0E/Ik82r3avdq9mr3SPVI9Uf0SPVH9BOCN/QTgkj1SPVY9Uj1NvQTYjXzE0K8+0X0RvRY9Wr3avdq92r3avdq92r3avdq92r3
+avdq91n1SPVZ9Uj1JPIjIhPSAABZ9kj1WvY39BOSE4ITMhOCAAATUgAAAAA08nr0EyETkgAAAAAAAAAAAAAAAAAAAAC/9Yv0JOIk0hOyAAAjEgAAEyITIgAA
+AAAAAAAAAAAAAAAAAAATIROSIyITEjXyE7I18ov0NfKL9M/1WPPP9WjzAAAAAAAAAAAAAAAAAAAAABOCAAATggAAAAAAAAAAAABq92r3avdq92r3avdq92r3
+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
+AAATkiTyavdH9Gr3fPiM+Yz4jPlI9Wr3WfVq94z4jPl7+Iz5NvRZ9mr3avdq91j1avc29Iz5jPiM+Yz5avdZ9nv4avdY9oz5I/Jq94z4avdH9DXzE/Ik8jbz
+JPK7+///7v5W9oz5jPmM+Yz5jPlq94z5aveM+Yz5jPmM+Yz5aveM+Gr3WfYT8mr3NfOa+Vb2JPJW9Wr3WfZq92r3WfZq92r3avcAAAAAAAAAAAAAAAAAAAAA
+JPITwmr3WvYTchMRR/QT0gAAAAAAAAAAAAAAAAAAAAAAAAAAEyIAAAAAAAAAAAAAavdq92r3avdq91j1avdq92r3avdq92r3avdq92r3avcj0iMSR/UTkgAA
+AAAAAAAAavYk4mr2NfMjEgAAEzIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAavdq9zb0avZq92r3avdq97v7NfM19EX0avdq92r2
+avda9jf0WfZI9RNSAAATkgAAWfVI9Vn1SPUT0gAAJPIjIiTyJPI29Fn2avdq92r3WPVq92r3avdq92r2JPJZ9TbzWPVI9Uj1SPU18xNCNvQTYkj1SPVI9Uj1
+N/QTgkf0E4IAAAAAAAAAAAAAAAAAAAAAAAAAABMiE5ITIROSNfKK9AAAAAAAAAAAAAAAAAAAAAATUgAAJOITIgAAAAAAAAAAE7JX8xMiE6LP9c/1NfKL9AAA
+AAAAAAAAEzITogAAAACK9BOyNOITMgAAAAAAAAAAE1IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATggAAE2IAAAAAAAAAAAAAEyEAAAAASPVq90f0avdq94z4
+avdq9yTyavcTokj1avdq92r3avcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABMiJOIAABNCWfZq9yTyWfYAAAAAAAAAABNCE9IAABIRjPmM+Wv3
+avdr92r3avdq92r3avdq92r3avdq92r3avdq92r2avc29Gr3avcl80f0avYT8kf0I/Jn9on43f0k82r3avdq92r3avdq9mr3R/Q29Fn2E3Ik8mr3R/Rq94z5
+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
+</script>
+
+<!-- Start the editor once the example above has been read in. -->
+<script>
+'use strict';
+
+findSaveMode();
+registerLiveUpdate();
+
+if (liveUpdate && liveUpdate.ready) {
+  liveUpdate.ready(startEditor);
+} else {
+  startEditor((liveUpdate && liveUpdate.data) || {});
+}
+</script>
+
+</body>
+</html>
