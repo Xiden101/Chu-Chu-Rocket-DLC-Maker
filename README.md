@@ -1,4 +1,4 @@
-# Chu Chu Rocket! VMU Tools
+# Chu Chu Rocket! DLC Creation Tools
 
 Two browser tools for Chu Chu Rocket! save files on the Dreamcast VMU:
 
