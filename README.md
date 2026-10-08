@@ -1,6 +1,6 @@
-# Chu Chu Rocket! DLC Creation Tools
+# Chu Chu Rocket! DLC Creation Tools for Sega Dreamcast.
 
-Two browser tools for Chu Chu Rocket! save files on the Dreamcast VMU:
+Two editor tools to create custom Chu Chu Rocket DLC for Sega Dreamcast 
 
 - **Character Editor** – draw your own mouse and cat animation frames and export them as a character-set save.
 - **Puzzle Pack Maker** – combine up to 25 puzzle saves into a single puzzle pack.
